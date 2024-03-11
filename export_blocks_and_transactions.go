@@ -3,10 +3,13 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
+	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
 	"math/big"
 	"sync"
+	"time"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/jszwec/csvutil"
@@ -17,7 +20,6 @@ type ExportBlocksAndTransactionsOptions struct {
 	blksOutput  io.Writer
 	txsOutput   io.Writer
 	trc10Output io.Writer
-
 	ProviderURI string `json:"provider_uri,omitempty"`
 	StartBlock  uint64 `json:"start_block,omitempty"`
 	EndBlock    uint64 `json:"end_block,omitempty"`
@@ -25,6 +27,14 @@ type ExportBlocksAndTransactionsOptions struct {
 	// extension
 	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
 	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
+}
+
+type ExportBlocksAndTransactionsStreamOptions struct {
+	blksKafkaOutput     kafka.Writer
+	txsKafkaOutput      kafka.Writer
+	trc10KafkaOutput    kafka.Writer
+	ProviderURI         string `json:"provider_uri,omitempty"`
+	LastSyncedBlockFile string `json:"last_synced_block,omitempty"`
 }
 
 // ExportBlocksAndTransactions is the main func for handling export_blocks_and_transactions command
@@ -185,4 +195,71 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 		close(trc10CsvEncCh)
 	}
 	receiverWG.Wait()
+}
+
+func ExportBlocksAndTransactionsStream(options *ExportBlocksAndTransactionsStreamOptions) {
+	cli := tron.NewTronClient(options.ProviderURI)
+
+	//blksKafkaWriter := kafkaWriter("", "")
+	//kafkaProducer(blksKafkaWriter)
+	//
+	//trxsKafkaWriter := kafkaWriter("", "")
+	//kafkaProducer(trxsKafkaWriter)
+	//
+	//trc10KafkaWriter := kafkaWriter("", "")
+	//kafkaProducer(trc10KafkaWriter)
+
+	// `b` contains everything your file has.
+	// This writes it to the Standard Out.
+
+	latestBlock := cli.GetLatestBlock()
+	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
+	log.Printf("try parsing blocks and transactions from block %d", startBlock)
+
+	for number := startBlock + 1; ; number++ {
+		num := new(big.Int).SetUint64(number)
+		for latestBlock < number {
+			fmt.Println("Waiting for new block. Current block number => ", latestBlock)
+			fmt.Println("Input starting block number => ", number)
+			latestBlock = cli.GetLatestBlock()
+			time.Sleep(5 * time.Second)
+		}
+		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
+		httpblock := cli.GetHTTPBlockByNumber(num)
+		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
+		csvBlock := NewCsvBlock(jsonblock, httpblock)
+		blockHash := csvBlock.Hash
+		for txIndex, jsontx := range jsonblock.Transactions {
+			httptx := httpblock.Transactions[txIndex]
+			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
+			jsonTxData, err := json.Marshal(csvTx)
+			fmt.Println(string(jsonTxData))
+			chk(err)
+
+			for callIndex, contractCall := range httptx.RawData.Contract {
+				if contractCall.ContractType == "TransferAssetContract" ||
+					contractCall.ContractType == "TransferContract" {
+					var tfParams tron.TRC10TransferParams
+
+					err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
+					chk(err)
+					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
+					jsonTrc10Data, err := json.Marshal(csvTf)
+					fmt.Println(string(jsonTrc10Data))
+					chk(err)
+				}
+			}
+		}
+
+		jsonData, err := json.Marshal(csvBlock)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		fmt.Println(string(jsonData))
+		chk(err)
+		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
+
+		log.Printf("parsed block %d", number)
+	}
 }

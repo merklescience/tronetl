@@ -13,6 +13,12 @@ type JSONResponse struct {
 	Result  json.RawMessage `json:"result"`
 }
 
+type JSONLatestBlock struct {
+	Jsonrpc string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Result  string `json:"result"`
+}
+
 // JSONBlockWithTxs represents a Block in which Transactions field is a list of Transaction structs
 type JSONBlockWithTxs struct {
 	BaseFeePerGas    interface{}       `json:"baseFeePerGas"`
@@ -80,4 +86,8 @@ type JSONTransaction struct {
 	Type             string          `json:"type"`
 	V                string          `json:"v"`
 	Value            *hexutil.Big    `json:"value"`
+}
+
+type LatestBlock struct {
+	BlockNumber *hexutil.Uint64 `json:"blockNumber"`
 }

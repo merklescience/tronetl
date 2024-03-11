@@ -34,6 +34,8 @@ func main() {
 	startTimestamp := defaults.Uint64("start-timestamp", 0, "the starting block's timestamp (in UTC)")
 	endTimestamp := defaults.Uint64("end-timestamp", 0, "the ending block's timestamp (in UTC)")
 	workers := defaults.Uint("workers", 0, "the count of the workers in parallel")
+	stream := defaults.Bool("stream", false, "streaming")
+	lastSyncedBlockFile := defaults.String("last_synced_block_file", "last_synced_block.txt", "last_sync_block.txt file")
 	defaults.AddFlagSet(nodeConfigs)
 
 	cmdBlocksAndTxs := pflag.NewFlagSet("export_blocks_and_transactions", pflag.ExitOnError)
@@ -74,6 +76,11 @@ func main() {
 				EndTimestamp:   *endTimestamp,
 			}
 
+			optionsStream := &ExportBlocksAndTransactionsStreamOptions{
+				ProviderURI:         *providerURI,
+				LastSyncedBlockFile: *lastSyncedBlockFile,
+			}
+
 			if *blksOutput != "-" {
 				options.blksOutput, err = os.Create(*blksOutput)
 				chk(err)
@@ -89,8 +96,10 @@ func main() {
 				chk(err)
 			}
 
-			if *workers == 0 {
+			if *workers == 0 && *stream == false {
 				ExportBlocksAndTransactions(options)
+			} else if *stream {
+				ExportBlocksAndTransactionsStream(optionsStream)
 			} else {
 				ExportBlocksAndTransactionsWithWorkers(options, *workers)
 			}

@@ -67,6 +67,8 @@ func (c *TronClient) GetJSONBlockByNumberWithTxIDs(number *big.Int) *JSONBlockWi
 	})
 	chk(err)
 	resp, err := http.Post(c.jsonURI, "application/json", bytes.NewBuffer(payload))
+
+	println("resp ", resp)
 	chk(err)
 	body, err := io.ReadAll(resp.Body)
 	chk(err)
@@ -226,4 +228,26 @@ func toBlockNumArg(number *big.Int) string {
 		return "pending"
 	}
 	return hexutil.EncodeBig(number)
+}
+
+func (c *TronClient) GetLatestBlock() uint64 {
+	payload, err := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "eth_blockNumber",
+		"params":  []any{},
+		"id":      rand.Int(),
+	})
+	chk(err)
+	resp, err := http.Post(c.jsonURI, "application/json", bytes.NewBuffer(payload))
+
+	chk(err)
+	body, err := io.ReadAll(resp.Body)
+	chk(err)
+
+	var rpcResp JSONLatestBlock
+	err = json.Unmarshal(body, &rpcResp)
+	chk(err)
+	result, err := hexutil.DecodeUint64(rpcResp.Result)
+	chk(err)
+	return result
 }

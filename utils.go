@@ -1,9 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"github.com/segmentio/kafka-go"
 	"log"
 	"math/big"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/jszwec/csvutil"
@@ -102,4 +109,76 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 
 	go writeFn()
 	return ch
+}
+
+func kafkaWriter(address string, topic string) *kafka.Writer {
+	return &kafka.Writer{
+		Addr:     kafka.TCP("localhost:9092"),
+		Topic:    "topic-A",
+		Balancer: &kafka.LeastBytes{},
+	}
+}
+
+func kafkaProducer(writer *kafka.Writer) {
+	const retries = 3
+	for i := 0; i < retries; i++ {
+		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// attempt to create topic prior to publishing the message
+		err := writer.WriteMessages(context.Background(), kafka.Message{
+			Key:   []byte("Key-A"),
+			Value: []byte("Hello World!"),
+		})
+		if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
+			time.Sleep(time.Millisecond * 250)
+			continue
+		}
+
+		if err != nil {
+			log.Fatalf("unexpected error %v", err)
+		}
+		break
+	}
+
+	if err := writer.Close(); err != nil {
+		log.Fatal("failed to close writer:", err)
+	}
+}
+
+func readLastSyncedBlock(file string) int {
+	if !doesFileExist(file) {
+		log.Fatalf("last_synced_block.txt file is unavailable. Please create and rerun")
+		os.Exit(0)
+	}
+	content, err := os.ReadFile(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	lastSyncedBlock, err := strconv.Atoi(strings.TrimSpace(string(content)))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return lastSyncedBlock
+}
+
+func doesFileExist(fileName string) bool {
+	_, error := os.Stat(fileName)
+
+	if os.IsNotExist(error) {
+		return false
+	} else {
+		return true
+	}
+}
+
+func writeLastSyncedBlock(file string, lastSyncedBlock uint64) {
+	writeToFile(file, strconv.FormatUint(lastSyncedBlock, 10)+"\n")
+}
+
+func writeToFile(file, content string) {
+	err := os.WriteFile(file, []byte(content), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
