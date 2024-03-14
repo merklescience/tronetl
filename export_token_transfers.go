@@ -2,14 +2,12 @@ package main
 
 import (
 	"encoding/csv"
-	"io"
-	"log"
-	"math/big"
-	"sync"
-
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/jszwec/csvutil"
 	"golang.org/x/exp/slices"
+	"io"
+	"log"
+	"sync"
 )
 
 type ExportTransferOptions struct {
@@ -26,8 +24,8 @@ type ExportTransferOptions struct {
 	EndBlock    uint64 `json:"end_block,omitempty"`
 
 	// extension
-	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
+	StartTimestamp string `json:"start_timestamp,omitempty"`
+	EndTimestamp   string `json:"end_timestamp,omitempty"`
 
 	Contracts []string `json:"contracts,omitempty"`
 }
@@ -67,48 +65,23 @@ func ExportTransfers(options *ExportTransferOptions) {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:] // hex addr with 41 prefix
 	}
 
-	if options.StartTimestamp != 0 {
+	if options.StartTimestamp != "" {
 		// fast locate estimate start height
 
-		estimateStartNumber := locateStartBlock(cli, options.StartTimestamp)
-
-		for number := estimateStartNumber; ; number++ {
-			block := cli.GetJSONBlockByNumberWithTxIDs(new(big.Int).SetUint64(number))
-			if block == nil {
-				break
-			}
-
-			blockTime := uint64(*block.Timestamp)
-
-			if blockTime < options.StartTimestamp {
-				log.Printf("passed start block %d: %d (< %d)", number, *block.Timestamp, blockTime)
-				continue
-			}
-
-			options.StartBlock = number
-			break
+		number, err := BlockNumberFromDateTime(cli, options.StartTimestamp, FirstAfterTimestamp)
+		if err != nil {
+			panic(err)
 		}
+		options.StartBlock = *number
+
 	}
 
-	if options.EndTimestamp != 0 {
-		estimateEndNumber := locateEndBlock(cli, options.EndTimestamp)
-
-		for number := estimateEndNumber; ; number-- {
-			block := cli.GetJSONBlockByNumberWithTxIDs(new(big.Int).SetUint64(number))
-			if block == nil {
-				break
-			}
-
-			blockTime := uint64(*block.Timestamp)
-
-			if blockTime > options.EndBlock {
-				log.Printf("passed end block %d: %d (> %d)", number, *block.Timestamp, blockTime)
-				continue
-			}
-
-			options.StartBlock = number
-			break
+	if options.EndTimestamp != "" {
+		number, err := BlockNumberFromDateTime(cli, options.EndTimestamp, LastBeforeTimestamp)
+		if err != nil {
+			panic(err)
 		}
+		options.EndBlock = *number
 	}
 
 	log.Printf("try parsing token transfers from block %d to %d", options.StartBlock, options.EndBlock)
@@ -149,7 +122,6 @@ func ExportTransfers(options *ExportTransferOptions) {
 							err := internalTxEncoder.Encode(NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue))
 							chk(err)
 						}
-
 					}
 				}
 
@@ -160,7 +132,6 @@ func ExportTransfers(options *ExportTransferOptions) {
 
 		return
 	}
-
 }
 
 // ExportTransfers is the main func for handling export_transfers command
@@ -203,48 +174,22 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:] // hex addr with 41 prefix
 	}
 
-	if options.StartTimestamp != 0 {
+	if options.StartTimestamp != "" {
 		// fast locate estimate start height
 
-		estimateStartNumber := locateStartBlock(cli, options.StartTimestamp)
-
-		for number := estimateStartNumber; ; number++ {
-			block := cli.GetJSONBlockByNumberWithTxIDs(new(big.Int).SetUint64(number))
-			if block == nil {
-				break
-			}
-
-			blockTime := uint64(*block.Timestamp)
-
-			if blockTime < options.StartTimestamp {
-				log.Printf("passed start block %d: %d", number, *block.Timestamp)
-				continue
-			}
-
-			options.StartBlock = number
-			break
+		estimateStartNumber, err := BlockNumberFromDateTime(cli, options.StartTimestamp, FirstAfterTimestamp)
+		if err != nil {
+			panic(err)
 		}
+		options.StartBlock = *estimateStartNumber
 	}
 
-	if options.EndTimestamp != 0 {
-		estimateEndNumber := locateEndBlock(cli, options.EndTimestamp)
-
-		for number := estimateEndNumber; ; number-- {
-			block := cli.GetJSONBlockByNumberWithTxIDs(new(big.Int).SetUint64(number))
-			if block == nil {
-				break
-			}
-
-			blockTime := uint64(*block.Timestamp)
-
-			if blockTime > options.EndTimestamp {
-				log.Printf("passed end block %d: %d", number, *block.Timestamp)
-				continue
-			}
-
-			options.EndBlock = number
-			break
+	if options.EndTimestamp != "" {
+		estimateEndNumber, err := BlockNumberFromDateTime(cli, options.StartTimestamp, LastBeforeTimestamp)
+		if err != nil {
+			panic(err)
 		}
+		options.StartBlock = *estimateEndNumber
 	}
 
 	log.Printf("try parsing token transfers from block %d to %d", options.StartBlock, options.EndBlock)
@@ -282,7 +227,6 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 						for callInfoIndex, callInfo := range internalTx.CallValueInfo {
 							internalTxEncCh <- NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
 						}
-
 					}
 				}
 

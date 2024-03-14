@@ -23,8 +23,8 @@ type ExportBlocksAndTransactionsOptions struct {
 	EndBlock    uint64 `json:"end_block,omitempty"`
 
 	// extension
-	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
+	StartTimestamp string `json:"start_timestamp,omitempty"`
+	EndTimestamp   string `json:"end_timestamp,omitempty"`
 }
 
 // ExportBlocksAndTransactions is the main func for handling export_blocks_and_transactions command

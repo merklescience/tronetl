@@ -31,8 +31,8 @@ func main() {
 	defaults := pflag.NewFlagSet("defaults for all commands", pflag.ExitOnError)
 	startBlock := defaults.Uint64("start-block", 0, "the starting block number")
 	endBlock := defaults.Uint64("end-block", 0, "the ending block number")
-	startTimestamp := defaults.Uint64("start-timestamp", 0, "the starting block's timestamp (in UTC)")
-	endTimestamp := defaults.Uint64("end-timestamp", 0, "the ending block's timestamp (in UTC)")
+	startTimestamp := defaults.String("start-timestamp", "", "the starting block's timestamp (in UTC)")
+	endTimestamp := defaults.String("end-timestamp", "", "the ending block's timestamp (in UTC)")
 	workers := defaults.Uint("workers", 0, "the count of the workers in parallel")
 	defaults.AddFlagSet(nodeConfigs)
 
@@ -217,8 +217,8 @@ func main() {
 					ProviderURI:    *providerURI,
 					StartBlock:     tryStr2Uint(ctx.Query("start-block")),
 					EndBlock:       tryStr2Uint(ctx.Query("end-block")),
-					StartTimestamp: tryStr2Uint(ctx.Query("start-timestamp")),
-					EndTimestamp:   tryStr2Uint(ctx.Query("end-timestamp")),
+					StartTimestamp: ctx.Query("start-timestamp"),
+					EndTimestamp:   ctx.Query("end-timestamp"),
 				}
 				ExportBlocksAndTransactions(options)
 
@@ -241,8 +241,8 @@ func main() {
 					ProviderURI:      *providerURI,
 					StartBlock:       tryStr2Uint(ctx.Query("start-block")),
 					EndBlock:         tryStr2Uint(ctx.Query("end-block")),
-					StartTimestamp:   tryStr2Uint(ctx.Query("start-timestamp")),
-					EndTimestamp:     tryStr2Uint(ctx.Query("end-timestamp")),
+					StartTimestamp:   ctx.Query("start-timestamp"),
+					EndTimestamp:     ctx.Query("end-timestamp"),
 					Contracts:        ctx.QueryArray("contracts"),
 				}
 				ExportTransfers(options)
