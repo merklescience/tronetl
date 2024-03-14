@@ -1,15 +1,13 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-
-	"archive/zip"
-
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -94,7 +92,6 @@ func main() {
 			} else {
 				ExportBlocksAndTransactionsWithWorkers(options, *workers)
 			}
-
 		},
 	}
 	exportBlocksAndTransactionsCmd.Flags().AddFlagSet(cmdBlocksAndTxs)
@@ -251,7 +248,6 @@ func main() {
 				ctx.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
 			})
 			r.Run(":54173")
-
 		},
 	}
 

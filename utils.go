@@ -1,14 +1,14 @@
 package main
 
 import (
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/jszwec/csvutil"
 	"log"
 	"math"
 	"math/big"
 	"strconv"
 	"sync"
 	"time"
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
 )
 
 const (

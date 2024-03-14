@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/holiman/uint256"
 )
