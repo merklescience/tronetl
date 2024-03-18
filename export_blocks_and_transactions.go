@@ -25,8 +25,8 @@ type ExportBlocksAndTransactionsOptions struct {
 	EndBlock    uint64 `json:"end_block,omitempty"`
 
 	// extension
-	StartTimestamp uint64 `json:"start_timestamp,omitempty"`
-	EndTimestamp   uint64 `json:"end_timestamp,omitempty"`
+	StartTimestamp string `json:"start_timestamp,omitempty"`
+	EndTimestamp   string `json:"end_timestamp,omitempty"`
 }
 
 type ExportBlocksAndTransactionsStreamOptions struct {
@@ -40,7 +40,20 @@ type ExportBlocksAndTransactionsStreamOptions struct {
 // ExportBlocksAndTransactions is the main func for handling export_blocks_and_transactions command
 func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 	cli := tron.NewTronClient(options.ProviderURI)
-
+	if options.StartBlock == 0 {
+		number, err := BlockNumberFromDateTime(cli, options.StartTimestamp, FirstAfterTimestamp)
+		if err != nil {
+			panic(err)
+		}
+		options.StartBlock = *number
+	}
+	if options.EndBlock == 0 {
+		number, err := BlockNumberFromDateTime(cli, options.EndTimestamp, LastBeforeTimestamp)
+		if err != nil {
+			panic(err)
+		}
+		options.EndBlock = *number
+	}
 	var blksCsvEncoder, txsCsvEncoder, trc10CsvEncoder *csvutil.Encoder
 	if options.blksOutput != nil {
 		blksCsvWriter := csv.NewWriter(options.blksOutput)
