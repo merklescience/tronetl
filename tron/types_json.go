@@ -87,7 +87,3 @@ type JSONTransaction struct {
 	V                string          `json:"v"`
 	Value            *hexutil.Big    `json:"value"`
 }
-
-type LatestBlock struct {
-	BlockNumber *hexutil.Uint64 `json:"blockNumber"`
-}

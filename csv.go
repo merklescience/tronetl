@@ -157,7 +157,7 @@ type CsvTRC10Transfer struct {
 
 // NewCsvTRC10Transfer creates a new CsvTRC10Transfer
 func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex int, httpTx *tron.HTTPTransaction, tfParams *tron.TRC10TransferParams) *CsvTRC10Transfer {
-
+	asset, _ := hex.DecodeString(tfParams.AssetName)
 	return &CsvTRC10Transfer{
 		TransactionHash:   httpTx.TxID,
 		BlockHash:         blockHash,
@@ -165,7 +165,7 @@ func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex i
 		TransactionIndex:  txIndex,
 		ContractCallIndex: callIndex,
 
-		AssetName:   tfParams.AssetName,
+		AssetName:   string(asset),
 		FromAddress: tron.EnsureTAddr(tfParams.OwnerAddress),
 		ToAddress:   tron.EnsureTAddr(tfParams.ToAddress),
 		Value:       tfParams.Amount.String(),
