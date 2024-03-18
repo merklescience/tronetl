@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/jszwec/csvutil"
 	"github.com/segmentio/kafka-go"
 	"log"
 	"math/big"
@@ -11,9 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
 )
 
 // locateStartBlock is a util for locating the start block by start timestamp
