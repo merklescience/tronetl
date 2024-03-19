@@ -35,8 +35,9 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var startBlock uint64
 	var prevTimeDiff int64
 	var prevBlockNumber int64
-	limitDateTime, err := time.Parse(time.DateTime, dateTime)
-
+	layout := "2006-01-02 15:04:05"
+	limitDateTime, err := time.Parse(layout, dateTime)
+	//limitDateTime, err := now.Format(dateTime)
 	if err != nil {
 		return nil, err
 	}

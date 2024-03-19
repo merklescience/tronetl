@@ -14,29 +14,29 @@ import (
 // CsvTransaction represents a tron tx csv output, not trc10
 // 1 TRX = 1000000 sun
 type CsvTransaction struct {
-	Hash             string `csv:"hash"`
-	Nonce            string `csv:"nonce"`
-	BlockHash        string `csv:"block_hash"`
-	BlockNumber      uint64 `csv:"block_number"`
-	TransactionIndex int    `csv:"transaction_index"`
+	Hash             string `csv:"hash" json:"hash"`
+	Nonce            string `csv:"nonce" json:"nonce"`
+	BlockHash        string `csv:"block_hash" json:"block_hash"`
+	BlockNumber      uint64 `csv:"block_number" json:"block_number"`
+	TransactionIndex int    `csv:"transaction_index" json:"transaction_index"`
 
-	FromAddress          string `csv:"from_address"`
-	ToAddress            string `csv:"to_address"`
-	Value                string `csv:"value"`
-	Gas                  string `csv:"gas"`
-	GasPrice             string `csv:"gas_price"`
-	Input                string `csv:"input"`
-	BlockTimestamp       uint64 `csv:"block_timestamp"`
-	MaxFeePerGas         string `csv:"max_fee_per_gas"`
-	MaxPriorityFeePerGas string `csv:"max_priority_fee_per_gas"`
-	TransactionType      string `csv:"transaction_type"`
+	FromAddress          string `csv:"from_address" json:"from_address"`
+	ToAddress            string `csv:"to_address" json:"to_address"`
+	Value                string `csv:"value" json:"value"`
+	Gas                  string `csv:"gas" json:"gas"`
+	GasPrice             string `csv:"gas_price" json:"gas_price"`
+	Input                string `csv:"input" json:"input"`
+	BlockTimestamp       uint64 `csv:"block_timestamp" json:"block_timestamp"`
+	MaxFeePerGas         string `csv:"max_fee_per_gas" json:"max_fee_per_gas"`
+	MaxPriorityFeePerGas string `csv:"max_priority_fee_per_gas" json:"max_priority_fee_per_gas"`
+	TransactionType      string `csv:"transaction_type" json:"transaction_type"`
 
-	Status string
+	Status string `csv:"status" json:"status"`
 
 	// appendix
-	TransactionTimestamp  int64 `csv:"transaction_timestamp"`
-	TransactionExpiration int64 `csv:"transaction_expiration"`
-	FeeLimit              int64 `csv:"fee_limit"`
+	TransactionTimestamp  int64 `csv:"transaction_timestamp" json:"transaction_timestamp"`
+	TransactionExpiration int64 `csv:"transaction_expiration" json:"transaction_expiration"`
+	FeeLimit              int64 `csv:"fee_limit" json:"fee_limit"`
 }
 
 // NewCsvTransaction creates a new CsvTransaction
@@ -84,28 +84,28 @@ func NewCsvTransaction(blockTimestamp uint64, txIndex int, jsontx *tron.JSONTran
 
 // CsvBlock represents a tron block output
 type CsvBlock struct {
-	Number           uint64 `csv:"number"`
-	Hash             string `csv:"hash"`
-	ParentHash       string `csv:"parent_hash"`
-	Nonce            string `csv:"nonce"`
-	Sha3Uncles       string `csv:"sha3_uncles"`
-	LogsBloom        string `csv:"logs_bloom"`
-	TransactionsRoot string `csv:"transaction_root"`
-	StateRoot        string `csv:"state_root"`
-	ReceiptsRoot     string `csv:"receipts_root"`
-	Miner            string `csv:"miner"`
-	Difficulty       string `csv:"difficulty"`
-	TotalDifficulty  string `csv:"total_difficulty"`
-	Size             uint64 `csv:"size"`
-	ExtraData        string `csv:"extra_data"`
-	GasLimit         string `csv:"gas_limit"`
-	GasUsed          string `csv:"gas_used"`
-	Timestamp        uint64 `csv:"timestamp"`
-	TansactionCount  int    `csv:"transaction_count"`
-	BaseFeePerGas    string `csv:"base_fee_per_gas"`
+	Number           uint64 `csv:"number" json:"number"`
+	Hash             string `csv:"hash" json:"hash"`
+	ParentHash       string `csv:"parent_hash" json:"parent_hash"`
+	Nonce            string `csv:"nonce" json:"nonce"`
+	Sha3Uncles       string `csv:"sha3_uncles" json:"sha3_uncles"`
+	LogsBloom        string `csv:"logs_bloom" json:"logs_bloom"`
+	TransactionsRoot string `csv:"transaction_root" json:"transactions_root"`
+	StateRoot        string `csv:"state_root" json:"state_root"`
+	ReceiptsRoot     string `csv:"receipts_root" json:"receipts_root"`
+	Miner            string `csv:"miner" json:"miner"`
+	Difficulty       string `csv:"difficulty" json:"difficulty"`
+	TotalDifficulty  string `csv:"total_difficulty" json:"total_difficulty"`
+	Size             uint64 `csv:"size" json:"size"`
+	ExtraData        string `csv:"extra_data" json:"extra_data"`
+	GasLimit         string `csv:"gas_limit" json:"gas_limit"`
+	GasUsed          string `csv:"gas_used" json:"gas_used"`
+	Timestamp        uint64 `csv:"timestamp" json:"timestamp"`
+	TansactionCount  int    `csv:"transaction_count" json:"transaction_count"`
+	BaseFeePerGas    string `csv:"base_fee_per_gas" json:"base_fee_per_gas"`
 
 	// append
-	WitnessSignature string `csv:"witness_signature"`
+	WitnessSignature string `csv:"witness_signature" json:"witness_signature"`
 }
 
 // NewCsvBlock creates a new CsvBlock
@@ -143,16 +143,16 @@ func NewCsvBlock(jsonblock *tron.JSONBlockWithTxs, httpblock *tron.HTTPBlock) *C
 // - TransferContract
 // - TransferAssetContract
 type CsvTRC10Transfer struct {
-	BlockNumber       uint64 `csv:"block_number"`
-	BlockHash         string `csv:"block_hash"`
-	TransactionHash   string `csv:"transaction_hash"`
-	TransactionIndex  int    `csv:"transaction_index"`
-	ContractCallIndex int    `csv:"contract_call_index"`
+	BlockNumber       uint64 `csv:"block_number" json:"block_number"`
+	BlockHash         string `csv:"block_hash" json:"block_hash"`
+	TransactionHash   string `csv:"transaction_hash" json:"transaction_hash"`
+	TransactionIndex  int    `csv:"transaction_index" json:"transaction_index"`
+	ContractCallIndex int    `csv:"contract_call_index" json:"contract_call_index"`
 
-	AssetName   string `csv:"asset_name"` // do not omit => empty means trx
-	FromAddress string `csv:"from_address"`
-	ToAddress   string `csv:"to_address"`
-	Value       string `csv:"value"`
+	AssetName   string `csv:"asset_name" json:"asset_name"` // do not omit => empty means trx
+	FromAddress string `csv:"from_address" json:"from_address"`
+	ToAddress   string `csv:"to_address" json:"to_address"`
+	Value       string `csv:"value" json:"value"`
 }
 
 // NewCsvTRC10Transfer creates a new CsvTRC10Transfer
@@ -174,13 +174,13 @@ func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex i
 
 // CsvLog is a EVM smart contract event log output
 type CsvLog struct {
-	BlockNumber     uint64 `csv:"block_number"`
-	TransactionHash string `csv:"transaction_hash"`
-	LogIndex        uint   `csv:"log_index"`
+	BlockNumber     uint64 `csv:"block_number" json:"block_number"`
+	TransactionHash string `csv:"transaction_hash" json:"transaction_hash"`
+	LogIndex        uint   `csv:"log_index" json:"log_index"`
 
-	Address string `csv:"address"`
-	Topics  string `csv:"topics"`
-	Data    string `csv:"data"`
+	Address string `csv:"address" json:"address"`
+	Topics  string `csv:"topics" json:"topics"`
+	Data    string `csv:"data" json:"data"`
 }
 
 // NewCsvLog creates a new CsvLog
@@ -198,17 +198,17 @@ func NewCsvLog(blockNumber uint64, txHash string, logIndex uint, log *tron.HTTPT
 
 // CsvInternalTx is a EVM smart contract internal transaction
 type CsvInternalTx struct {
-	BlockNumber             uint64 `csv:"block_number"`
-	TransactionHash         string `csv:"transaction_hash"`
-	Index                   uint   `csv:"internal_index"`
-	InternalTransactionHash string `csv:"internal_hash"`
-	CallerAddress           string `csv:"caller_address"`
-	TransferToAddress       string `csv:"transferTo_address"`
-	CallInfoIndex           uint   `csv:"call_info_index"`
-	CallTokenID             string `csv:"call_token_id"`
-	CallValue               int64  `csv:"call_value"`
-	Note                    string `csv:"note"`
-	Rejected                bool   `csv:"rejected"`
+	BlockNumber             uint64 `csv:"block_number" json:"block_number"`
+	TransactionHash         string `csv:"transaction_hash" json:"transaction_hash"`
+	Index                   uint   `csv:"internal_index" json:"internal_index"`
+	InternalTransactionHash string `csv:"internal_hash" json:"internal_hash"`
+	CallerAddress           string `csv:"caller_address" json:"caller_address"`
+	TransferToAddress       string `csv:"transferTo_address" json:"transferTo_address"`
+	CallInfoIndex           uint   `csv:"call_info_index" json:"call_info_index"`
+	CallTokenID             string `csv:"call_token_id" json:"call_token_id"`
+	CallValue               int64  `csv:"call_value" json:"call_value"`
+	Note                    string `csv:"note" json:"note"`
+	Rejected                bool   `csv:"rejected" json:"rejected"`
 }
 
 // NewCsvInternalTx creates a new CsvInternalTx
@@ -233,18 +233,18 @@ func NewCsvInternalTx(blockNum uint64, txHash string, index uint, itx *tron.HTTP
 
 // CsvReceipt is a receipt for tron transaction
 type CsvReceipt struct {
-	TxHash  string `csv:"transaction_hash"`
-	TxIndex uint   `csv:"transaction_index"`
+	TxHash  string `csv:"transaction_hash" json:"transaction_hash"`
+	TxIndex uint   `csv:"transaction_index" json:"transaction_index"`
 	// BlockHash         string `csv:"block_hash"` // cannot get this
-	BlockNumber       uint64 `csv:"block_number"`
-	ContractAddress   string `csv:"contract_address"`
-	EnergyUsage       int64  `csv:"energy_usage,omitempty"`
-	EnergyFee         int64  `csv:"energy_fee,omitempty"`
-	OriginEnergyUsage int64  `csv:"origin_energy_usage,omitempty"`
-	EnergyUsageTotal  int64  `csv:"energy_usage_total,omitempty"`
-	NetUsage          int64  `csv:"net_usage,omitempty"`
-	NetFee            int64  `csv:"net_fee,omitempty"`
-	Result            string `csv:"result"`
+	BlockNumber       uint64 `csv:"block_number" json:"block_number"`
+	ContractAddress   string `csv:"contract_address" json:"contract_address"`
+	EnergyUsage       int64  `csv:"energy_usage,omitempty" json:"energy_usage"`
+	EnergyFee         int64  `csv:"energy_fee,omitempty" json:"energy_fee"`
+	OriginEnergyUsage int64  `csv:"origin_energy_usage,omitempty" json:"origin_energy_usage"`
+	EnergyUsageTotal  int64  `csv:"energy_usage_total,omitempty" json:"energy_usage_total"`
+	NetUsage          int64  `csv:"net_usage,omitempty" json:"net_usage"`
+	NetFee            int64  `csv:"net_fee,omitempty" json:"net_fee"`
+	Result            string `csv:"result" json:"result"`
 }
 
 func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr string, r *tron.HTTPReceipt) *CsvReceipt {
@@ -267,10 +267,10 @@ func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr st
 
 // CsvAccount is a tron account
 type CsvAccount struct {
-	AccountName string `csv:"account_name"`
-	Address     string `csv:"address"`
-	Type        string `csv:"type"`
-	CreateTime  int64  `csv:"create_time"`
+	AccountName string `csv:"account_name" json:"account_name"`
+	Address     string `csv:"address" json:"address"`
+	Type        string `csv:"type" json:"type"`
+	CreateTime  int64  `csv:"create_time" json:"create_time"`
 
 	// DecodedName string `csv:decoded_name`
 }
@@ -360,12 +360,12 @@ func implementsAnyOf(hashes []string, sigStrs ...string) bool {
 
 // CsvTokens is a standard EVM contract token
 type CsvTokens struct {
-	Address     string `csv:"address"`
-	Symbol      string `csv:"symbol"`
-	Name        string `csv:"name"`
-	Decimals    uint64 `csv:"decimals"`
-	TotalSupply uint64 `csv:"total_supply"`
-	BlockNumber uint64 `csv:"block_number"`
+	Address     string `csv:"address" json:"address"`
+	Symbol      string `csv:"symbol" json:"symbol"`
+	Name        string `csv:"name" json:"name"`
+	Decimals    uint64 `csv:"decimals" json:"decimals"`
+	TotalSupply uint64 `csv:"total_supply" json:"total_supply"`
+	BlockNumber uint64 `csv:"block_number" json:"block_number"`
 }
 
 func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens {
