@@ -4,14 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"strconv"
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
 )
 
 var rootCmd = &cobra.Command{
