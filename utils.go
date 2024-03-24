@@ -24,7 +24,7 @@ const (
 type BlockGenMetadata struct {
 	blockNumber     uint64
 	avgBlockGenTime uint64
-	checkTime       int64
+	latestBlockTime int64
 }
 
 func IntToHex(i int64) string {
@@ -47,7 +47,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 		return nil, err
 	}
 
-	approxBlockNumberInt := int64(blockGenTime.blockNumber) - (int64(blockGenTime.checkTime)-limitDateTime.UTC().Unix())/int64(blockGenTime.avgBlockGenTime)
+	approxBlockNumberInt := int64(blockGenTime.blockNumber) - (int64(blockGenTime.latestBlockTime)-limitDateTime.UTC().Unix())/int64(blockGenTime.avgBlockGenTime)
 	// broader search first
 	loopIter := 0
 	fineLoopIter := 0
@@ -108,12 +108,10 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 
 func AvgBlockGenTime(c *tron.TronClient) (*BlockGenMetadata, error) {
 	const blockCheckNumber = 100000
-	currentTime := uint64(time.Now().UTC().Unix())
 	latestBlock := c.GetJSONBlockByNumberWithTxIDs(nil)
-
 	oldBlockNumber := *latestBlock.Number - blockCheckNumber
 	oldBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(int64(oldBlockNumber)))
-	blockGenMeta := &BlockGenMetadata{blockNumber: uint64(*latestBlock.Number), avgBlockGenTime: (currentTime - uint64(*oldBlock.Timestamp)) / blockCheckNumber, checkTime: int64(currentTime)}
+	blockGenMeta := &BlockGenMetadata{blockNumber: uint64(*latestBlock.Number), avgBlockGenTime: (uint64(*latestBlock.Timestamp) - uint64(*oldBlock.Timestamp)) / blockCheckNumber, latestBlockTime: int64(*latestBlock.Timestamp)}
 	return blockGenMeta, nil
 }
 

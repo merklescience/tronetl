@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 	"io"
 	"math/big"
 	"math/rand"
 	"net/http"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/holiman/uint256"
 )
 
 type TronClient struct {
