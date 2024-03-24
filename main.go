@@ -4,14 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"strconv"
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
 )
 
 var rootCmd = &cobra.Command{
@@ -32,8 +32,6 @@ func main() {
 	startTimestamp := defaults.String("start-timestamp", "", "the starting block's timestamp (in UTC)")
 	endTimestamp := defaults.String("end-timestamp", "", "the ending block's timestamp (in UTC)")
 	workers := defaults.Uint("workers", 0, "the count of the workers in parallel")
-	stream := defaults.Bool("stream", false, "streaming")
-	lastSyncedBlockFile := defaults.String("last_synced_block_file", "last_synced_block.txt", "last_sync_block.txt file")
 	defaults.AddFlagSet(nodeConfigs)
 
 	cmdBlocksAndTxs := pflag.NewFlagSet("export_blocks_and_transactions", pflag.ExitOnError)
@@ -58,6 +56,12 @@ func main() {
 	tokensOutput := cmdAddrDetails.String("tokens-output", "tokens.csv", "the CSV file for token contract detail outputs, use - to omit")
 	cmdAddrDetails.AddFlagSet(nodeConfigs)
 
+	cmdStream := pflag.NewFlagSet("stream", pflag.ExitOnError)
+	lastSyncedBlockFile := defaults.String("last_synced_block_file", "last_synced_block.txt", "last_sync_block.txt file")
+	cmdStream.AddFlagSet(cmdBlocksAndTxs)
+	cmdStream.AddFlagSet(cmdTokenTf)
+	cmdStream.AddFlagSet(defaults)
+
 	exportBlocksAndTransactionsCmd := &cobra.Command{
 		Use:   "export_blocks_and_transactions",
 		Short: "export blocks, with the blocks' trx and trc10 transactions",
@@ -72,11 +76,6 @@ func main() {
 
 				StartTimestamp: *startTimestamp,
 				EndTimestamp:   *endTimestamp,
-			}
-
-			optionsStream := &ExportBlocksAndTransactionsStreamOptions{
-				ProviderURI:         *providerURI,
-				LastSyncedBlockFile: *lastSyncedBlockFile,
 			}
 
 			if *blksOutput != "-" {
@@ -94,10 +93,8 @@ func main() {
 				chk(err)
 			}
 
-			if *workers == 0 && *stream == false {
+			if *workers == 0 {
 				ExportBlocksAndTransactions(options)
-			} else if *stream {
-				ExportBlocksAndTransactionsStream(optionsStream)
 			} else {
 				ExportBlocksAndTransactionsWithWorkers(options, *workers)
 			}
@@ -260,11 +257,25 @@ func main() {
 		},
 	}
 
+	exportStreamCmd := &cobra.Command{
+		Use:   "stream",
+		Short: "stream blocks, with the blocks' trx and trc10 transactions",
+		Run: func(cmd *cobra.Command, args []string) {
+			optionsStream := &ExportStreamOptions{
+				ProviderURI:         *providerURI,
+				LastSyncedBlockFile: *lastSyncedBlockFile,
+			}
+			ExportStream(optionsStream)
+		},
+	}
+	exportStreamCmd.Flags().AddFlagSet(cmdStream)
+
 	rootCmd.AddCommand(
 		exportBlocksAndTransactionsCmd,
 		exportTokenTransfersCmd,
 		exportAddressDetailsCmd,
 		serverCmd,
+		exportStreamCmd,
 	)
 
 	if err := rootCmd.Execute(); err != nil {

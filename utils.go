@@ -136,15 +136,20 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 	return ch
 }
 
-func kafkaWriter(address string, topic string) *kafka.Writer {
-	return &kafka.Writer{
+//func kafkaWriter(topic string) *kafka.Writer {
+//	return &kafka.Writer{
+//		Addr:     kafka.TCP("localhost:9092"),
+//		Topic:    "topic-A",
+//		Balancer: &kafka.LeastBytes{},
+//	}
+//}
+
+func kafkaProducer(topic string, key string, value string) {
+	writer := kafka.Writer{
 		Addr:     kafka.TCP("localhost:9092"),
-		Topic:    "topic-A",
+		Topic:    topic,
 		Balancer: &kafka.LeastBytes{},
 	}
-}
-
-func kafkaProducer(writer *kafka.Writer) {
 	const retries = 3
 	for i := 0; i < retries; i++ {
 		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -152,8 +157,8 @@ func kafkaProducer(writer *kafka.Writer) {
 
 		// attempt to create topic prior to publishing the message
 		err := writer.WriteMessages(context.Background(), kafka.Message{
-			Key:   []byte("Key-A"),
-			Value: []byte("Hello World!"),
+			Key:   []byte(key),
+			Value: []byte(value),
 		})
 		if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
 			time.Sleep(time.Millisecond * 250)

@@ -3,16 +3,12 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
-	"github.com/segmentio/kafka-go"
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/jszwec/csvutil"
 	"io"
 	"log"
 	"math/big"
 	"sync"
-	"time"
-
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
 )
 
 // ExportBlocksAndTransactionsOptions is the option for ExportBlocksAndTransactions func
@@ -27,14 +23,6 @@ type ExportBlocksAndTransactionsOptions struct {
 	// extension
 	StartTimestamp string `json:"start_timestamp,omitempty"`
 	EndTimestamp   string `json:"end_timestamp,omitempty"`
-}
-
-type ExportBlocksAndTransactionsStreamOptions struct {
-	blksKafkaOutput     kafka.Writer
-	txsKafkaOutput      kafka.Writer
-	trc10KafkaOutput    kafka.Writer
-	ProviderURI         string `json:"provider_uri,omitempty"`
-	LastSyncedBlockFile string `json:"last_synced_block,omitempty"`
 }
 
 // ExportBlocksAndTransactions is the main func for handling export_blocks_and_transactions command
@@ -210,69 +198,115 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 	receiverWG.Wait()
 }
 
-func ExportBlocksAndTransactionsStream(options *ExportBlocksAndTransactionsStreamOptions) {
-	cli := tron.NewTronClient(options.ProviderURI)
-
-	//blksKafkaWriter := kafkaWriter("", "")
-	//kafkaProducer(blksKafkaWriter)
-	//
-	//trxsKafkaWriter := kafkaWriter("", "")
-	//kafkaProducer(trxsKafkaWriter)
-	//
-	//trc10KafkaWriter := kafkaWriter("", "")
-	//kafkaProducer(trc10KafkaWriter)
-
-	// `b` contains everything your file has.
-	// This writes it to the Standard Out.
-
-	latestBlock := cli.GetLatestBlock()
-	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
-	log.Printf("try parsing blocks and transactions from block %d", startBlock)
-
-	for number := startBlock + 1; ; number++ {
-		num := new(big.Int).SetUint64(number)
-		for latestBlock < number {
-			fmt.Println("Waiting for new block. Current block number => ", latestBlock)
-			fmt.Println("Input starting block number => ", number)
-			latestBlock = cli.GetLatestBlock()
-			time.Sleep(5 * time.Second)
-		}
-		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
-		httpblock := cli.GetHTTPBlockByNumber(num)
-		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
-		csvBlock := NewCsvBlock(jsonblock, httpblock)
-		blockHash := csvBlock.Hash
-		for txIndex, jsontx := range jsonblock.Transactions {
-			httptx := httpblock.Transactions[txIndex]
-			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
-			jsonTxData, err := json.Marshal(csvTx)
-			fmt.Println(string(jsonTxData))
-			chk(err)
-
-			for callIndex, contractCall := range httptx.RawData.Contract {
-				if contractCall.ContractType == "TransferAssetContract" ||
-					contractCall.ContractType == "TransferContract" {
-					var tfParams tron.TRC10TransferParams
-
-					err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
-					chk(err)
-					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
-					jsonTrc10Data, err := json.Marshal(csvTf)
-					fmt.Println(string(jsonTrc10Data))
-					chk(err)
-				}
-			}
-		}
-
-		jsonData, err := json.Marshal(csvBlock)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-		fmt.Println(string(jsonData))
-		chk(err)
-		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
-
-		log.Printf("parsed block %d", number)
-	}
-}
+//func ExportBlocksAndTransactionsStream(options *ExportBlocksAndTransactionsStreamOptions) {
+//	cli := tron.NewTronClient(options.ProviderURI)
+//	var tfEncoder, logEncoder, internalTxEncoder, receiptEncoder *csvutil.Encoder
+//	filterLogContracts := make([]string, len(options.Contracts))
+//	for i, addr := range options.Contracts {
+//		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:] // hex addr with 41 prefix
+//	}
+//	latestBlock := cli.GetLatestBlock()
+//	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
+//	log.Printf("try parsing blocks and transactions from block %d", startBlock)
+//
+//	for number := startBlock + 1; ; number++ {
+//		num := new(big.Int).SetUint64(number)
+//		for latestBlock < number {
+//			fmt.Println("Waiting for new block. Current block number => ", latestBlock)
+//			fmt.Println("Input starting block number => ", number)
+//			latestBlock = cli.GetLatestBlock()
+//			time.Sleep(5 * time.Second)
+//		}
+//		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
+//		httpblock := cli.GetHTTPBlockByNumber(num)
+//		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
+//		csvBlock := NewCsvBlock(jsonblock, httpblock)
+//		blockHash := csvBlock.Hash
+//		for txIndex, jsontx := range jsonblock.Transactions {
+//			httptx := httpblock.Transactions[txIndex]
+//			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
+//			jsonTxData, err := json.Marshal(csvTx)
+//			kafkaProducer("tron-transaction-producer", "", string(jsonTxData))
+//			//fmt.Println(string(jsonTxData))
+//			chk(err)
+//
+//			for callIndex, contractCall := range httptx.RawData.Contract {
+//				if contractCall.ContractType == "TransferAssetContract" ||
+//					contractCall.ContractType == "TransferContract" {
+//					var tfParams tron.TRC10TransferParams
+//
+//					err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
+//					chk(err)
+//					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
+//					jsonTrc10Data, err := json.Marshal(csvTf)
+//					kafkaProducer("tron-trc10-producer", "", string(jsonTrc10Data))
+//					//fmt.Println(string(jsonTrc10Data))
+//					chk(err)
+//				}
+//			}
+//		}
+//
+//		jsonBlockData, err := json.Marshal(csvBlock)
+//		if err != nil {
+//			fmt.Println("Error:", err)
+//			return
+//		}
+//		kafkaProducer("tron-blocks-producer", "", string(jsonBlockData))
+//		//fmt.Println(string(jsonData))
+//		chk(err)
+//
+//		//token_transfer
+//		txInfos := cli.GetTxInfosByNumber(number)
+//		for txIndex, txInfo := range txInfos {
+//			txHash := txInfo.ID
+//
+//			if receiptEncoder != nil {
+//				//receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt))
+//				resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
+//				jsonReceipt, err := json.Marshal(resultReceipt)
+//				chk(err)
+//				kafkaProducer("", "", string(jsonReceipt))
+//			}
+//
+//			for logIndex, log := range txInfo.Log {
+//				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
+//					continue
+//				}
+//
+//				if tfEncoder != nil {
+//					tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
+//					if tf != nil {
+//						jsonTransfer, err := json.Marshal(tf)
+//						chk(err)
+//						kafkaProducer("", "", string(jsonTransfer))
+//						chk(err)
+//					}
+//				}
+//
+//				if logEncoder != nil {
+//					tf := NewCsvLog(number, txHash, uint(logIndex), log)
+//					jsonLog, err := json.Marshal(tf)
+//					chk(err)
+//					kafkaProducer("", "", string(jsonLog))
+//					chk(err)
+//				}
+//
+//			}
+//
+//			if internalTxEncoder != nil {
+//				for internalIndex, internalTx := range txInfo.InternalTransactions {
+//					for callInfoIndex, callInfo := range internalTx.CallValueInfo {
+//						internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
+//						jsonInternalTx, err := json.Marshal(internalTx)
+//						chk(err)
+//						kafkaProducer("", "", string(jsonInternalTx))
+//						chk(err)
+//					}
+//				}
+//			}
+//
+//		}
+//		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
+//		log.Printf("parsed block %d", number)
+//	}
+//}
