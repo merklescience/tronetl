@@ -34,6 +34,7 @@ type ExportTransferOptions struct {
 func ExportTransfers(options *ExportTransferOptions) {
 	cli := tron.NewTronClient(options.ProviderURI)
 
+
 	var tfEncoder, logEncoder, internalTxEncoder, receiptEncoder *csvutil.Encoder
 
 	if options.tfOutput != nil {
@@ -172,24 +173,6 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 	filterLogContracts := make([]string, len(options.Contracts))
 	for i, addr := range options.Contracts {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:] // hex addr with 41 prefix
-	}
-
-	if options.StartTimestamp != "" {
-		// fast locate estimate start height
-
-		estimateStartNumber, err := BlockNumberFromDateTime(cli, options.StartTimestamp, FirstAfterTimestamp)
-		if err != nil {
-			panic(err)
-		}
-		options.StartBlock = *estimateStartNumber
-	}
-
-	if options.EndTimestamp != "" {
-		estimateEndNumber, err := BlockNumberFromDateTime(cli, options.StartTimestamp, LastBeforeTimestamp)
-		if err != nil {
-			panic(err)
-		}
-		options.StartBlock = *estimateEndNumber
 	}
 
 	log.Printf("try parsing token transfers from block %d to %d", options.StartBlock, options.EndBlock)

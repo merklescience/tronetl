@@ -28,20 +28,6 @@ type ExportBlocksAndTransactionsOptions struct {
 // ExportBlocksAndTransactions is the main func for handling export_blocks_and_transactions command
 func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 	cli := tron.NewTronClient(options.ProviderURI)
-	if options.StartBlock == 0 {
-		number, err := BlockNumberFromDateTime(cli, options.StartTimestamp, FirstAfterTimestamp)
-		if err != nil {
-			panic(err)
-		}
-		options.StartBlock = *number
-	}
-	if options.EndBlock == 0 {
-		number, err := BlockNumberFromDateTime(cli, options.EndTimestamp, LastBeforeTimestamp)
-		if err != nil {
-			panic(err)
-		}
-		options.EndBlock = *number
-	}
 	var blksCsvEncoder, txsCsvEncoder, trc10CsvEncoder *csvutil.Encoder
 	if options.blksOutput != nil {
 		blksCsvWriter := csv.NewWriter(options.blksOutput)

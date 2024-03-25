@@ -61,13 +61,27 @@ func main() {
 	cmdStream.AddFlagSet(cmdBlocksAndTxs)
 	cmdStream.AddFlagSet(cmdTokenTf)
 	cmdStream.AddFlagSet(defaults)
-
+	
 	exportBlocksAndTransactionsCmd := &cobra.Command{
 		Use:   "export_blocks_and_transactions",
 		Short: "export blocks, with the blocks' trx and trc10 transactions",
 		Run: func(cmd *cobra.Command, args []string) {
 			var err error
-
+			cli := tron.NewTronClient(*providerURI)
+			if *startBlock == 0 {
+				number, err := BlockNumberFromDateTime(cli, *startTimestamp, FirstAfterTimestamp)
+				if err != nil {
+					panic(err)
+				}
+				startBlock = number
+			}
+			if *endBlock == 0 {
+				number, err := BlockNumberFromDateTime(cli, *endTimestamp, LastBeforeTimestamp)
+				if err != nil {
+					panic(err)
+				}
+				endBlock = number
+			}
 			options := &ExportBlocksAndTransactionsOptions{
 				ProviderURI: *providerURI,
 
@@ -107,7 +121,21 @@ func main() {
 		Short: "export smart contract token's transfers",
 		Run: func(cmd *cobra.Command, args []string) {
 			var err error
-
+			cli := tron.NewTronClient(*providerURI)
+			if *startBlock == 0 {
+				number, err := BlockNumberFromDateTime(cli, *startTimestamp, FirstAfterTimestamp)
+				if err != nil {
+					panic(err)
+				}
+				startBlock = number
+			}
+			if *endBlock == 0 {
+				number, err := BlockNumberFromDateTime(cli, *endTimestamp, LastBeforeTimestamp)
+				if err != nil {
+					panic(err)
+				}
+				endBlock = number
+			}
 			options := &ExportTransferOptions{
 				ProviderURI: *providerURI,
 				StartBlock:  *startBlock,
