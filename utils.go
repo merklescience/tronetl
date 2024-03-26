@@ -45,17 +45,19 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 		return nil, err
 	}
 
-	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime)-limitDateTime.UTC().Unix())/int64(blockGenTime.avgBlockGenTime))
-	// broader search first
+	// Calculate approximate block based on block generattion time
+	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime) - limitDateTime.UTC().Unix()) / int64(blockGenTime.avgBlockGenTime))
+	// Broader search first
+	// 
 	loopIter := 0
 	fineLoopIter := 0
-	log.Println("Starting Block Number ", approxBlockNumberInt," : ", blockType," and limitDatetime : ",dateTime)
+	log.Println("Starting Block Number ", approxBlockNumberInt, " : ", blockType, " and limitDatetime : ", dateTime)
 	for {
 
 		approxBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumberInt))
 		timeDiff := int64(*approxBlock.Timestamp) - limitDateTime.UTC().Unix() // approx block's time - our required date time
 
-		// Very rare case handled
+		// Edge case handled
 		if timeDiff == 0 {
 			if blockType == LastBeforeTimestamp {
 				approxBlockNumberInt -= 1
@@ -71,9 +73,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 		if fineLoopCheck {
 			// fineLoopIter > 0 this ensures that once we only enter finer loop we don't have to carry on the
 			// broad search based on average block generation time (blockGenTime.avgBlockGenTime)
-
 			log.Println("Going for finer search after loop iter ", loopIter)
-
 			if ((timeDiff < 0 && prevTimeDiff > 0) || (timeDiff > 0 && prevTimeDiff < 0)) && fineLoopIter > 0 {
 				if (timeDiff < 0 && prevTimeDiff > 0) && blockType == FirstAfterTimestamp {
 					approxBlockNumberInt += 1
@@ -85,25 +85,19 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 				break
 			}
 			prevBlockNumber = approxBlockNumberInt
-			if timeDiff < 0 {
-				approxBlockNumberInt += 1
-			} else {
-				approxBlockNumberInt -= 1
-			}
-
+			approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(math.Abs(float64(timeDiff)))
 			fineLoopIter++
 		} else {
 			prevBlockNumber = approxBlockNumberInt
-			if math.Abs(float64(timeDiff)) < 20.0 {
+			if math.Abs(float64(timeDiff)) < 60 {
 				approxBlockNumberInt = approxBlockNumberInt + timeDiff/int64(math.Abs(float64(timeDiff)))
 			} else {
 				approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(blockGenTime.avgBlockGenTime)
 			}
 		}
-		log.Println("After Callibration loop iter : ", loopIter, ", block number : ", approxBlockNumberInt, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
+		log.Println("After callibration loop iter : ", loopIter, ", block number : ", approxBlockNumberInt, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
 		loopIter++
 		prevTimeDiff = timeDiff
-
 	}
 	startBlock = uint64(approxBlockNumberInt)
 	return &startBlock, nil

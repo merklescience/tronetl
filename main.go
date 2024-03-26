@@ -61,7 +61,7 @@ func main() {
 	cmdStream.AddFlagSet(cmdBlocksAndTxs)
 	cmdStream.AddFlagSet(cmdTokenTf)
 	cmdStream.AddFlagSet(defaults)
-	
+
 	exportBlocksAndTransactionsCmd := &cobra.Command{
 		Use:   "export_blocks_and_transactions",
 		Short: "export blocks, with the blocks' trx and trc10 transactions",

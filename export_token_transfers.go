@@ -34,7 +34,6 @@ type ExportTransferOptions struct {
 func ExportTransfers(options *ExportTransferOptions) {
 	cli := tron.NewTronClient(options.ProviderURI)
 
-
 	var tfEncoder, logEncoder, internalTxEncoder, receiptEncoder *csvutil.Encoder
 
 	if options.tfOutput != nil {
