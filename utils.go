@@ -35,9 +35,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var startBlock uint64
 	var prevTimeDiff int64
 	var prevBlockNumber int64
-	layout := "2006-01-02 15:04:05"
-	limitDateTime, err := time.Parse(layout, dateTime)
-	//limitDateTime, err := now.Format(dateTime)
+	limitDateTime, err := time.Parse(time.DateTime, dateTime)
 	if err != nil {
 		return nil, err
 	}
@@ -47,11 +45,11 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 		return nil, err
 	}
 
-	approxBlockNumberInt := int64(blockGenTime.blockNumber) - (int64(blockGenTime.latestBlockTime)-limitDateTime.UTC().Unix())/int64(blockGenTime.avgBlockGenTime)
+	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime)-limitDateTime.UTC().Unix())/int64(blockGenTime.avgBlockGenTime))
 	// broader search first
 	loopIter := 0
 	fineLoopIter := 0
-	log.Println("Starting Block Number ", approxBlockNumberInt)
+	log.Println("Starting Block Number ", approxBlockNumberInt," : ", blockType," and limitDatetime : ",dateTime)
 	for {
 
 		approxBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumberInt))
@@ -62,6 +60,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 			if blockType == LastBeforeTimestamp {
 				approxBlockNumberInt -= 1
 			}
+			log.Println("Found edge case of timeDiff 0 and exiting with ", approxBlockNumberInt)
 			break
 		}
 
@@ -95,7 +94,11 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 			fineLoopIter++
 		} else {
 			prevBlockNumber = approxBlockNumberInt
-			approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(blockGenTime.avgBlockGenTime)
+			if math.Abs(float64(timeDiff)) < 20.0 {
+				approxBlockNumberInt = approxBlockNumberInt + timeDiff/int64(math.Abs(float64(timeDiff)))
+			} else {
+				approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(blockGenTime.avgBlockGenTime)
+			}
 		}
 		log.Println("After Callibration loop iter : ", loopIter, ", block number : ", approxBlockNumberInt, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
 		loopIter++
