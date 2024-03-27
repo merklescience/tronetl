@@ -35,6 +35,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var startBlock uint64
 	var prevTimeDiff int64
 	var prevBlockNumber int64
+	var stepSize int64
 	limitDateTime, err := time.Parse(time.DateTime, dateTime)
 	if err != nil {
 		return nil, err
@@ -48,7 +49,6 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	// Calculate approximate block based on block generattion time
 	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime) - limitDateTime.UTC().Unix()) / int64(blockGenTime.avgBlockGenTime))
 	// Broader search first
-	// 
 	loopIter := 0
 	fineLoopIter := 0
 	log.Println("Starting Block Number ", approxBlockNumberInt, " : ", blockType, " and limitDatetime : ", dateTime)
@@ -89,11 +89,15 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 			fineLoopIter++
 		} else {
 			prevBlockNumber = approxBlockNumberInt
-			if math.Abs(float64(timeDiff)) < 60 {
-				approxBlockNumberInt = approxBlockNumberInt + timeDiff/int64(math.Abs(float64(timeDiff)))
+			if math.Abs(float64(timeDiff)) < 30 {
+				// decrease step size to 1 if timediff is close 
+				stepSize=timeDiff/int64(math.Abs(float64(timeDiff)))
 			} else {
-				approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(blockGenTime.avgBlockGenTime)
+				// default follow approximate blockgentime search
+				stepSize=timeDiff/int64(blockGenTime.avgBlockGenTime)
 			}
+			// when stepSize is negative i.e we are below our target block the '-' will make it '+' and we will try higher block and vice versa in positive case
+			approxBlockNumberInt = approxBlockNumberInt - stepSize // when stepSize is negative i.e we are below our target block 
 		}
 		log.Println("After callibration loop iter : ", loopIter, ", block number : ", approxBlockNumberInt, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
 		loopIter++
