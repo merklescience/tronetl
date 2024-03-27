@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
 	"io"
 	"log"
 	"math/big"
 	"sync"
+
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/jszwec/csvutil"
 )
 
 // ExportBlocksAndTransactionsOptions is the option for ExportBlocksAndTransactions func
@@ -71,7 +72,6 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 						if contractCall.ContractType == "TransferAssetContract" ||
 							contractCall.ContractType == "TransferContract" {
 							var tfParams tron.TRC10TransferParams
-
 							err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
 							chk(err)
 							csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
@@ -145,7 +145,6 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 							if contractCall.ContractType == "TransferAssetContract" ||
 								contractCall.ContractType == "TransferContract" {
 								var tfParams tron.TRC10TransferParams
-
 								err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
 								chk(err)
 								csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)

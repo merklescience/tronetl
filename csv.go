@@ -41,9 +41,15 @@ type CsvTransaction struct {
 
 // NewCsvTransaction creates a new CsvTransaction
 func NewCsvTransaction(blockTimestamp uint64, txIndex int, jsontx *tron.JSONTransaction, httptx *tron.HTTPTransaction) *CsvTransaction {
+
 	to := ""
 	if jsontx.To != "" {
 		to = tron.EnsureTAddr(jsontx.To[2:])
+	}
+
+	from := ""
+	if jsontx.From != "" {
+		from = tron.EnsureTAddr(jsontx.From[2:])
 	}
 
 	txType := "Unknown"
@@ -58,11 +64,11 @@ func NewCsvTransaction(blockTimestamp uint64, txIndex int, jsontx *tron.JSONTran
 
 	return &CsvTransaction{
 		Hash:                 jsontx.Hash[2:],
-		Nonce:                "", //tx.Nonce,
+		Nonce:                jsontx.Nonce,
 		BlockHash:            jsontx.BlockHash[2:],
 		BlockNumber:          uint64(*jsontx.BlockNumber),
 		TransactionIndex:     txIndex,
-		FromAddress:          tron.EnsureTAddr(jsontx.From[2:]),
+		FromAddress:          from, //tron.EnsureTAddr(jsontx.From[2:]),
 		ToAddress:            to,
 		Value:                jsontx.Value.ToInt().String(),
 		Gas:                  jsontx.Gas.ToInt().String(),
@@ -114,7 +120,7 @@ func NewCsvBlock(jsonblock *tron.JSONBlockWithTxs, httpblock *tron.HTTPBlock) *C
 		Number:           uint64(*jsonblock.Number),
 		Hash:             jsonblock.Hash[2:],
 		ParentHash:       jsonblock.ParentHash[2:],
-		Nonce:            "",
+		Nonce:            jsonblock.Nonce,
 		Sha3Uncles:       "", // block.Sha3Uncles,
 		LogsBloom:        jsonblock.LogsBloom[2:],
 		TransactionsRoot: jsonblock.TransactionsRoot[2:],

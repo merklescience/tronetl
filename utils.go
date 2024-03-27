@@ -1,11 +1,7 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
-	"github.com/segmentio/kafka-go"
+	"fmt"
 	"log"
 	"math"
 	"math/big"
@@ -14,6 +10,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/jszwec/csvutil"
+	// "github.com/segmentio/kafka-go"
 )
 
 const (
@@ -48,7 +49,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	// Calculate approximate block based on block generattion time
 	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime) - limitDateTime.UTC().Unix()) / int64(blockGenTime.avgBlockGenTime))
 	// Broader search first
-	// 
+	//
 	loopIter := 0
 	fineLoopIter := 0
 	log.Println("Starting Block Number ", approxBlockNumberInt, " : ", blockType, " and limitDatetime : ", dateTime)
@@ -140,35 +141,65 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 //}
 
 func kafkaProducer(topic string, key string, value string) {
-	writer := kafka.Writer{
-		Addr:     kafka.TCP("localhost:9092"),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{},
-	}
-	const retries = 3
-	for i := 0; i < retries; i++ {
-		_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	writer, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers": "localhost:9092",
+		"client.id":         "tronetl",
+		"acks":              "all"})
 
-		// attempt to create topic prior to publishing the message
-		err := writer.WriteMessages(context.Background(), kafka.Message{
-			Key:   []byte(key),
-			Value: []byte(value),
-		})
-		if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
-			time.Sleep(time.Millisecond * 250)
-			continue
+	if err != nil {
+		fmt.Printf("Failed to create producer: %s\n", err)
+		os.Exit(1)
+	}
+
+	delivery_chan := make(chan kafka.Event, 10000)
+	err = writer.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(value)},
+		delivery_chan,
+	)
+
+	go func() {
+		for e := range writer.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				if ev.TopicPartition.Error != nil {
+					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
+				} else {
+					fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n",
+						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
+				}
+			}
 		}
+	}()
+	// writer := kafka.Writer{
+	// 	Addr:     kafka.TCP("localhost:9092"),
+	// 	Topic:    topic,
+	// 	Balancer: &kafka.LeastBytes{},
+	// }
+	// const retries = 3
+	// for i := 0; i < retries; i++ {
+	// 	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// 	defer cancel()
 
-		if err != nil {
-			log.Fatalf("unexpected error %v", err)
-		}
-		break
-	}
+	// 	// attempt to create topic prior to publishing the message
+	// 	err := writer.WriteMessages(context.Background(), kafka.Message{
+	// 		Key:   []byte(key),
+	// 		Value: []byte(value),
+	// 	})
+	// 	if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
+	// 		time.Sleep(time.Millisecond * 250)
+	// 		continue
+	// 	}
 
-	if err := writer.Close(); err != nil {
-		log.Fatal("failed to close writer:", err)
-	}
+	// 	if err != nil {
+	// 		log.Fatalf("unexpected error %v", err)
+	// 	}
+	// 	break
+	// }
+
+	// if err := writer.Close(); err != nil {
+	// 	log.Fatal("failed to close writer:", err)
+	// }
 }
 
 func readLastSyncedBlock(file string) int {

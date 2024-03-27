@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/holiman/uint256"
 	"io"
 	"math/big"
 	"math/rand"
 	"net/http"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 )
 
 type TronClient struct {
@@ -25,8 +26,10 @@ func chk(err error) {
 
 func NewTronClient(providerURL string) *TronClient {
 	return &TronClient{
-		httpURI: providerURL + ":8090",
-		jsonURI: providerURL + ":8545/jsonrpc",
+		httpURI: providerURL + "",
+		jsonURI: providerURL + "/jsonrpc",
+		// httpURI: providerURL + ":8090",
+		// jsonURI: providerURL + ":8545/jsonrpc",
 	}
 }
 

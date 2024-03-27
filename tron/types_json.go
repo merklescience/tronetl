@@ -30,7 +30,7 @@ type JSONBlockWithTxs struct {
 	LogsBloom        string            `json:"logsBloom"`
 	Miner            string            `json:"miner"`
 	MixHash          interface{}       `json:"mixHash"`
-	Nonce            interface{}       `json:"nonce"` // null
+	Nonce            string            `json:"nonce"` // null
 	Number           *hexutil.Uint64   `json:"number"`
 	ParentHash       string            `json:"parentHash"`
 	ReceiptsRoot     interface{}       `json:"receiptsRoot"`
@@ -55,7 +55,7 @@ type JSONBlockWithTxIDs struct {
 	LogsBloom        string          `json:"logsBloom"`
 	Miner            string          `json:"miner"`
 	MixHash          interface{}     `json:"mixHash"`
-	Nonce            interface{}     `json:"nonce"` // null
+	Nonce            string          `json:"nonce"` // null
 	Number           *hexutil.Uint64 `json:"number"`
 	ParentHash       string          `json:"parentHash"`
 	ReceiptsRoot     interface{}     `json:"receiptsRoot"`
@@ -78,7 +78,7 @@ type JSONTransaction struct {
 	GasPrice         *hexutil.Big    `json:"gasPrice"`
 	Hash             string          `json:"hash"`
 	Input            string          `json:"input"`
-	Nonce            interface{}     `json:"nonce"` // always null
+	Nonce            string          `json:"nonce"` // always null
 	R                string          `json:"r"`
 	S                string          `json:"s"`
 	To               string          `json:"to"`
