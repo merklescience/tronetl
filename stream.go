@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"time"
-
-	"golang.org/x/exp/slices"
-
 	"os"
+	"time"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jszwec/csvutil"
+	"golang.org/x/exp/slices"
 )
 
 type ExportStreamOptions struct {
