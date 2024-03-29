@@ -36,6 +36,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var startBlock uint64
 	var prevTimeDiff int64
 	var prevBlockNumber int64
+	var stepSize int64
 	limitDateTime, err := time.Parse(time.DateTime, dateTime)
 	if err != nil {
 		return nil, err
@@ -47,60 +48,66 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	}
 
 	// Calculate approximate block based on block generattion time
-	approxBlockNumberInt := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime) - limitDateTime.UTC().Unix()) / int64(blockGenTime.avgBlockGenTime))
+	approxBlockNumber := int64(blockGenTime.blockNumber) - ((int64(blockGenTime.latestBlockTime) - limitDateTime.UTC().Unix()) / int64(blockGenTime.avgBlockGenTime))
 	// Broader search first
-	//
 	loopIter := 0
 	fineLoopIter := 0
-	log.Println("Starting Block Number ", approxBlockNumberInt, " : ", blockType, " and limitDatetime : ", dateTime)
+	log.Println("Starting Block Number ", approxBlockNumber, " : ", blockType, " and limitDatetime : ", dateTime)
 	for {
 
-		approxBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumberInt))
+		approxBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumber))
 		timeDiff := int64(*approxBlock.Timestamp) - limitDateTime.UTC().Unix() // approx block's time - our required date time
 
 		// Edge case handled
 		if timeDiff == 0 {
 			if blockType == LastBeforeTimestamp {
-				approxBlockNumberInt -= 1
+				approxBlockNumber -= 1
 			}
-			log.Println("Found edge case of timeDiff 0 and exiting with ", approxBlockNumberInt)
+			log.Println("Found edge case of timeDiff 0 and exiting with ", approxBlockNumber)
 			break
 		}
-
+		// Adapt blockgentime after every 5 iterations as most of the case, algo would find the block in 3-4 iterations
+		if ((loopIter % 5) == 0) && (loopIter > 4) {
+			blockGenTime.avgBlockGenTime = (uint64(math.Abs(float64(prevTimeDiff))) + uint64(math.Abs(float64(timeDiff)))) / (uint64(math.Abs(float64(prevBlockNumber - approxBlockNumber))))
+		}
 		// Finer search once timeDiff is within average block Generation time
 		//  math.Abs(float64(approxBlockNumberInt)-float64(prevBlockNumber)) < 2.0 this ensures the case when it's oscillating between 2 blocks but never getting into fine loop
 		// because math.Abs(float64(timeDiff)) < float64(blockGenTime.avgBlockGenTime) is not true
-		fineLoopCheck := math.Abs(float64(timeDiff)) < float64(blockGenTime.avgBlockGenTime) || fineLoopIter > 0 || math.Abs(float64(approxBlockNumberInt)-float64(prevBlockNumber)) < 2.0
+		fineLoopCheck := math.Abs(float64(timeDiff)) < float64(blockGenTime.avgBlockGenTime) || fineLoopIter > 0 || math.Abs(float64(approxBlockNumber)-float64(prevBlockNumber)) < 2.0
 		if fineLoopCheck {
 			// fineLoopIter > 0 this ensures that once we only enter finer loop we don't have to carry on the
 			// broad search based on average block generation time (blockGenTime.avgBlockGenTime)
 			log.Println("Going for finer search after loop iter ", loopIter)
 			if ((timeDiff < 0 && prevTimeDiff > 0) || (timeDiff > 0 && prevTimeDiff < 0)) && fineLoopIter > 0 {
 				if (timeDiff < 0 && prevTimeDiff > 0) && blockType == FirstAfterTimestamp {
-					approxBlockNumberInt += 1
+					approxBlockNumber += 1
 				}
 				if (timeDiff > 0 && prevTimeDiff < 0) && blockType == LastBeforeTimestamp {
-					approxBlockNumberInt -= 1
+					approxBlockNumber -= 1
 				}
-				log.Println("Found the block number to be ", approxBlockNumberInt)
+				log.Println("Found the block number to be ", approxBlockNumber)
 				break
 			}
-			prevBlockNumber = approxBlockNumberInt
-			approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(math.Abs(float64(timeDiff)))
+			prevBlockNumber = approxBlockNumber
+			approxBlockNumber = approxBlockNumber - timeDiff/int64(math.Abs(float64(timeDiff)))
 			fineLoopIter++
 		} else {
-			prevBlockNumber = approxBlockNumberInt
-			if math.Abs(float64(timeDiff)) < 60 {
-				approxBlockNumberInt = approxBlockNumberInt + timeDiff/int64(math.Abs(float64(timeDiff)))
+			prevBlockNumber = approxBlockNumber
+			if math.Abs(float64(timeDiff)) < 30 {
+				// decrease step size to 1 if timediff is close
+				stepSize = timeDiff / int64(math.Abs(float64(timeDiff)))
 			} else {
-				approxBlockNumberInt = approxBlockNumberInt - timeDiff/int64(blockGenTime.avgBlockGenTime)
+				// default follow approximate blockgentime search
+				stepSize = timeDiff / int64(blockGenTime.avgBlockGenTime)
 			}
+			// when stepSize is negative i.e we are below our target block the '-' will make it '+' and we will try higher block and vice versa in positive case
+			approxBlockNumber = approxBlockNumber - stepSize // when stepSize is negative i.e we are below our target block
 		}
-		log.Println("After callibration loop iter : ", loopIter, ", block number : ", approxBlockNumberInt, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
+		log.Println("After callibration loop iter : ", loopIter, ", block number : ", approxBlockNumber, ", time difference : ", timeDiff, ", previous time diff ", prevTimeDiff)
 		loopIter++
 		prevTimeDiff = timeDiff
 	}
-	startBlock = uint64(approxBlockNumberInt)
+	startBlock = uint64(approxBlockNumber)
 	return &startBlock, nil
 }
 
