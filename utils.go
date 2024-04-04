@@ -149,9 +149,11 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 
 func kafkaProducer(topic string, key string, value string) {
 	writer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost:9092",
-		"client.id":         "tronetl",
-		"acks":              "all"})
+		"bootstrap.servers": "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
+		"security.protocol": "SASL_SSL",
+		"sasl.username":     "xxxxxxxx",
+		"sasl.password":     "xxxxxxxx",
+		"client.id":         "tronetl"})
 
 	if err != nil {
 		fmt.Printf("Failed to create producer: %s\n", err)
@@ -164,6 +166,7 @@ func kafkaProducer(topic string, key string, value string) {
 		Value:          []byte(value)},
 		delivery_chan,
 	)
+	chk(err)
 
 	go func() {
 		for e := range writer.Events() {
