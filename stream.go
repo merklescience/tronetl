@@ -49,7 +49,6 @@ func ExportStream(options *ExportStreamOptions) {
 			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
 			jsonTxData, err := json.Marshal(csvTx)
 			kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxData), kafkaProducerConfig)
-			//fmt.Println(string(jsonTxData))
 			chk(err)
 
 			for callIndex, contractCall := range httptx.RawData.Contract {
@@ -62,7 +61,6 @@ func ExportStream(options *ExportStreamOptions) {
 					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
 					jsonTrc10Data, err := json.Marshal(csvTf)
 					kafkaProducer("producer-tron-trc10-hot-rpc", "", string(jsonTrc10Data), kafkaProducerConfig)
-					//fmt.Println(string(jsonTrc10Data))
 					chk(err)
 				}
 			}
@@ -80,14 +78,10 @@ func ExportStream(options *ExportStreamOptions) {
 		txInfos := cli.GetTxInfosByNumber(number)
 		for txIndex, txInfo := range txInfos {
 			txHash := txInfo.ID
-
-			//receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt))
 			resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
 			jsonReceipt, err := json.Marshal(resultReceipt)
 			chk(err)
-
 			kafkaProducer("producer-tron-receipt-hot-rpc", "", string(jsonReceipt), kafkaProducerConfig)
-
 			for logIndex, log := range txInfo.Log {
 				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
 					continue
@@ -106,9 +100,7 @@ func ExportStream(options *ExportStreamOptions) {
 				chk(err)
 				kafkaProducer("producer-tron-logs-hot-rpc", "", string(jsonLog), kafkaProducerConfig)
 				chk(err)
-
 			}
-
 			for internalIndex, internalTx := range txInfo.InternalTransactions {
 				for callInfoIndex, callInfo := range internalTx.CallValueInfo {
 					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
@@ -118,7 +110,6 @@ func ExportStream(options *ExportStreamOptions) {
 					chk(err)
 				}
 			}
-
 		}
 		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
 		log.Printf("parsed block %d", number)
