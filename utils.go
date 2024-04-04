@@ -139,37 +139,32 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 	return ch
 }
 
-//func kafkaWriter(topic string) *kafka.Writer {
-//	return &kafka.Writer{
-//		Addr:     kafka.TCP("localhost:9092"),
-//		Topic:    "topic-A",
-//		Balancer: &kafka.LeastBytes{},
-//	}
-//}
-
-func kafkaProducer(topic string, key string, value string) {
+func constructKafkaProducer() *kafka.Producer {
 	writer, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers": "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
+		"sasl.mechanisms":   "PLAIN",
 		"security.protocol": "SASL_SSL",
-		"sasl.username":     "xxxxxxxx",
-		"sasl.password":     "xxxxxxxx",
+		"sasl.username":     "xxxxxxx",
+		"sasl.password":     "xxxxxxx",
 		"client.id":         "tronetl"})
 
 	if err != nil {
 		fmt.Printf("Failed to create producer: %s\n", err)
 		os.Exit(1)
 	}
+	return writer
+}
 
+func kafkaProducer(topic string, key string, value string, kafkaProducerConfig *kafka.Producer) {
 	delivery_chan := make(chan kafka.Event, 10000)
-	err = writer.Produce(&kafka.Message{
+	kafkaProducerConfig.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          []byte(value)},
 		delivery_chan,
 	)
-	chk(err)
 
 	go func() {
-		for e := range writer.Events() {
+		for e := range kafkaProducerConfig.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
 				if ev.TopicPartition.Error != nil {
@@ -181,35 +176,6 @@ func kafkaProducer(topic string, key string, value string) {
 			}
 		}
 	}()
-	// writer := kafka.Writer{
-	// 	Addr:     kafka.TCP("localhost:9092"),
-	// 	Topic:    topic,
-	// 	Balancer: &kafka.LeastBytes{},
-	// }
-	// const retries = 3
-	// for i := 0; i < retries; i++ {
-	// 	_, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	// 	defer cancel()
-
-	// 	// attempt to create topic prior to publishing the message
-	// 	err := writer.WriteMessages(context.Background(), kafka.Message{
-	// 		Key:   []byte(key),
-	// 		Value: []byte(value),
-	// 	})
-	// 	if errors.Is(err, kafka.LeaderNotAvailable) || errors.Is(err, context.DeadlineExceeded) {
-	// 		time.Sleep(time.Millisecond * 250)
-	// 		continue
-	// 	}
-
-	// 	if err != nil {
-	// 		log.Fatalf("unexpected error %v", err)
-	// 	}
-	// 	break
-	// }
-
-	// if err := writer.Close(); err != nil {
-	// 	log.Fatal("failed to close writer:", err)
-	// }
 }
 
 func readLastSyncedBlock(file string) int {

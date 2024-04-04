@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"os"
 	"time"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/jszwec/csvutil"
 	"golang.org/x/exp/slices"
 )
 
@@ -24,14 +21,15 @@ type ExportStreamOptions struct {
 
 func ExportStream(options *ExportStreamOptions) {
 	cli := tron.NewTronClient(options.ProviderURI)
-	var tfEncoder, logEncoder, internalTxEncoder, receiptEncoder *csvutil.Encoder
+	// var tfEncoder, logEncoder, internalTxEncoder, receiptEncoder *csvutil.Encoder
 	filterLogContracts := make([]string, len(options.Contracts))
 	for i, addr := range options.Contracts {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:] // hex addr with 41 prefix
 	}
 	latestBlock := cli.GetLatestBlock()
 	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
-	log.Printf("try parsing blocks and transactions from block %d", startBlock)
+	log.Printf("try parsing blocks from block number %d", startBlock+1)
+	kafkaProducerConfig := constructKafkaProducer()
 
 	for number := startBlock + 1; ; number++ {
 		num := new(big.Int).SetUint64(number)
@@ -50,28 +48,7 @@ func ExportStream(options *ExportStreamOptions) {
 			httptx := httpblock.Transactions[txIndex]
 			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
 			jsonTxData, err := json.Marshal(csvTx)
-			{
-				var topic string = "producer-tron-transactions-hot"
-				writer, err := kafka.NewProducer(&kafka.ConfigMap{"bootstrap.servers": "localhost:9092", "client.id": "tronetl", "acks": "all"})
-				if err != nil {
-					fmt.Printf("Failed to create producer: %s\n", err)
-					os.Exit(1)
-				}
-				delivery_chan := make(chan kafka.Event, 10000)
-				err = writer.Produce(&kafka.Message{TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny}, Value: []byte(string(jsonTxData))}, delivery_chan)
-				go func() {
-					for e := range writer.Events() {
-						switch ev := e.(type) {
-						case *kafka.Message:
-							if ev.TopicPartition.Error != nil {
-								fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-							} else {
-								fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n", *ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
-							}
-						}
-					}
-				}()
-			}
+			kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxData), kafkaProducerConfig)
 			//fmt.Println(string(jsonTxData))
 			chk(err)
 
@@ -84,7 +61,7 @@ func ExportStream(options *ExportStreamOptions) {
 					chk(err)
 					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
 					jsonTrc10Data, err := json.Marshal(csvTf)
-					kafkaProducer("producer-tron-trc10-hot", "", string(jsonTrc10Data))
+					kafkaProducer("producer-tron-trc10-hot-rpc", "", string(jsonTrc10Data), kafkaProducerConfig)
 					//fmt.Println(string(jsonTrc10Data))
 					chk(err)
 				}
@@ -96,8 +73,7 @@ func ExportStream(options *ExportStreamOptions) {
 			fmt.Println("Error:", err)
 			return
 		}
-		kafkaProducer("producer-tron-blocks-hot", "", string(jsonBlockData))
-		//fmt.Println(string(jsonData))
+		kafkaProducer("producer-tron-blocks-hot-rpc", "", string(jsonBlockData), kafkaProducerConfig)
 		chk(err)
 
 		//token_transfer
@@ -105,48 +81,41 @@ func ExportStream(options *ExportStreamOptions) {
 		for txIndex, txInfo := range txInfos {
 			txHash := txInfo.ID
 
-			if receiptEncoder != nil {
-				//receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt))
-				resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
-				jsonReceipt, err := json.Marshal(resultReceipt)
-				chk(err)
-				kafkaProducer("producer-tron-receipt-hot", "", string(jsonReceipt))
-			}
+			//receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt))
+			resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
+			jsonReceipt, err := json.Marshal(resultReceipt)
+			chk(err)
+
+			kafkaProducer("producer-tron-receipt-hot-rpc", "", string(jsonReceipt), kafkaProducerConfig)
 
 			for logIndex, log := range txInfo.Log {
 				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
 					continue
 				}
 
-				if tfEncoder != nil {
-					tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
-					if tf != nil {
-						jsonTransfer, err := json.Marshal(tf)
-						chk(err)
-						kafkaProducer("producer-tron-token_transfers-hot", "", string(jsonTransfer))
-						chk(err)
-					}
+				tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
+				if tf != nil {
+					jsonTransfer, err := json.Marshal(tf)
+					chk(err)
+					kafkaProducer("producer-tron-token_transfers-hot-rpc", "", string(jsonTransfer), kafkaProducerConfig)
+					chk(err)
 				}
 
-				if logEncoder != nil {
-					tf := NewCsvLog(number, txHash, uint(logIndex), log)
-					jsonLog, err := json.Marshal(tf)
-					chk(err)
-					kafkaProducer("producer-tron-logs-hot", "", string(jsonLog))
-					chk(err)
-				}
+				tfLog := NewCsvLog(number, txHash, uint(logIndex), log)
+				jsonLog, err := json.Marshal(tfLog)
+				chk(err)
+				kafkaProducer("producer-tron-logs-hot-rpc", "", string(jsonLog), kafkaProducerConfig)
+				chk(err)
 
 			}
 
-			if internalTxEncoder != nil {
-				for internalIndex, internalTx := range txInfo.InternalTransactions {
-					for callInfoIndex, callInfo := range internalTx.CallValueInfo {
-						internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
-						jsonInternalTx, err := json.Marshal(internalTx)
-						chk(err)
-						kafkaProducer("producer-tron-internal_transactions-hot", "", string(jsonInternalTx))
-						chk(err)
-					}
+			for internalIndex, internalTx := range txInfo.InternalTransactions {
+				for callInfoIndex, callInfo := range internalTx.CallValueInfo {
+					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
+					jsonInternalTx, err := json.Marshal(internalTx)
+					chk(err)
+					kafkaProducer("producer-tron-internal_transactions-hot-rpc", "", string(jsonInternalTx), kafkaProducerConfig)
+					chk(err)
 				}
 			}
 
