@@ -41,6 +41,17 @@ func ExportStream(options *ExportStreamOptions) {
 		}
 		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
 		httpblock := cli.GetHTTPBlockByNumber(num)
+		if httpblock == nil {
+			time.Sleep(10 * time.Second)
+			jsonblock = cli.GetJSONBlockByNumberWithTxs(num)
+			httpblock = cli.GetHTTPBlockByNumber(num)
+
+		}
+		if httpblock.BlockHeader == nil {
+			time.Sleep(10 * time.Second)
+			jsonblock = cli.GetJSONBlockByNumberWithTxs(num)
+			httpblock = cli.GetHTTPBlockByNumber(num)
+		}
 		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 		csvBlock := NewCsvBlock(jsonblock, httpblock)
 		blockHash := csvBlock.Hash
