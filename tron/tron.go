@@ -71,7 +71,7 @@ func (c *TronClient) GetJSONBlockByNumberWithTxIDs(number *big.Int) *JSONBlockWi
 	chk(err)
 	resp, err := http.Post(c.jsonURI, "application/json", bytes.NewBuffer(payload))
 
-	// println("resp ", resp)
+	println("resp ", resp.Body)
 	chk(err)
 	body, err := io.ReadAll(resp.Body)
 	chk(err)

@@ -89,7 +89,7 @@ func ExportStream(options *ExportStreamOptions) {
 		txInfos := cli.GetTxInfosByNumber(number)
 		for txIndex, txInfo := range txInfos {
 			txHash := txInfo.ID
-			resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
+			resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt)
 			jsonReceipt, err := json.Marshal(resultReceipt)
 			chk(err)
 			kafkaProducer("producer-tron-receipt-hot-rpc", "", string(jsonReceipt), kafkaProducerConfig)

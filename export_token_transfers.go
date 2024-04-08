@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/csv"
-	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/jszwec/csvutil"
-	"golang.org/x/exp/slices"
 	"io"
 	"log"
 	"sync"
+
+	"git.ngx.fi/c0mm4nd/tronetl/tron"
+	"github.com/jszwec/csvutil"
+	"golang.org/x/exp/slices"
 )
 
 type ExportTransferOptions struct {
@@ -93,7 +94,7 @@ func ExportTransfers(options *ExportTransferOptions) {
 				txHash := txInfo.ID
 
 				if receiptEncoder != nil {
-					receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt))
+					receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt))
 				}
 
 				for logIndex, log := range txInfo.Log {
@@ -183,7 +184,7 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 				txHash := txInfo.ID
 
 				if options.receiptOutput != nil {
-					receiptEncCh <- NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Receipt)
+					receiptEncCh <- NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt)
 				}
 
 				for logIndex, log := range txInfo.Log {

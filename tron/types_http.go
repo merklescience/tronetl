@@ -9,7 +9,7 @@ import (
 // the struct follows https://github.com/tronprotocol/protocol/blob/2351aa6c2d708bf5ef47baf70410b3bc87d65fa7/core/Tron.proto#L341
 type HTTPTxInfo struct {
 	ID                            string                     `json:"id,omitempty"`
-	Fee                           int                        `json:"fee,omitempty"`
+	Fee                           int64                      `json:"fee,omitempty"`
 	BlockNumber                   int                        `json:"blockNumber,omitempty"`
 	BlockTimeStamp                int64                      `json:"blockTimeStamp,omitempty"`
 	ContractResult                []string                   `json:"contractResult,omitempty"`

@@ -251,9 +251,10 @@ type CsvReceipt struct {
 	NetUsage          int64  `csv:"net_usage,omitempty" json:"net_usage"`
 	NetFee            int64  `csv:"net_fee,omitempty" json:"net_fee"`
 	Result            string `csv:"result" json:"result"`
+	Fee               int64  `csv:"fee" json:"fee"`
 }
 
-func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr string, r *tron.HTTPReceipt) *CsvReceipt {
+func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr string, tx_fee int64, r *tron.HTTPReceipt) *CsvReceipt {
 
 	return &CsvReceipt{
 		TxHash:  txHash,
@@ -267,6 +268,7 @@ func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr st
 		EnergyUsageTotal:  r.EnergyUsageTotal,
 		NetUsage:          r.NetUsage,
 		NetFee:            r.NetFee,
+		Fee:               tx_fee,
 		Result:            r.Result,
 	}
 }
