@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/btcsuite/btcd/btcutil v1.1.2
-	github.com/confluentinc/confluent-kafka-go v1.9.2
+	github.com/confluentinc/confluent-kafka-go/v2 v2.3.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/gin-gonic/gin v1.8.1
 	github.com/holiman/uint256 v1.2.1

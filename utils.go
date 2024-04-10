@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jszwec/csvutil"
 	// "github.com/segmentio/kafka-go"
 )
@@ -144,9 +144,10 @@ func constructKafkaProducer() *kafka.Producer {
 		"bootstrap.servers": "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
 		"sasl.mechanisms":   "PLAIN",
 		"security.protocol": "SASL_SSL",
-		"sasl.username":     "xxxxxxx",
-		"sasl.password":     "xxxxxxx",
-		"client.id":         "tronetl"})
+		"sasl.username":     "xxxxx",
+		"sasl.password":     "xxxxx",
+		"client.id":         "tronetl",
+		"go.batch.producer": true})
 
 	if err != nil {
 		fmt.Printf("Failed to create producer: %s\n", err)

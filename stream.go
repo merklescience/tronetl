@@ -55,12 +55,15 @@ func ExportStream(options *ExportStreamOptions) {
 		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 		csvBlock := NewCsvBlock(jsonblock, httpblock)
 		blockHash := csvBlock.Hash
+		csvTxMap := make(map[string]CsvTransaction)
 		for txIndex, jsontx := range jsonblock.Transactions {
 			httptx := httpblock.Transactions[txIndex]
 			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
-			jsonTxData, err := json.Marshal(csvTx)
-			kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxData), kafkaProducerConfig)
-			chk(err)
+			csvTxMap[csvTx.Hash] = *csvTx
+			// jsonTxData, err := json.Marshal(csvTx)
+
+			// kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxData), kafkaProducerConfig)
+			// chk(err)
 
 			for callIndex, contractCall := range httptx.RawData.Contract {
 				if contractCall.ContractType == "TransferAssetContract" ||
@@ -89,15 +92,17 @@ func ExportStream(options *ExportStreamOptions) {
 		txInfos := cli.GetTxInfosByNumber(number)
 		for txIndex, txInfo := range txInfos {
 			txHash := txInfo.ID
-			resultReceipt := NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt)
-			jsonReceipt, err := json.Marshal(resultReceipt)
+			txCSV := csvTxMap[txHash]
+			// jsonTxn, err := json.Marshal(txCSV)
+			resultStreamTxnReceipt := NewStreamCsvTransactionReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt, &txCSV)
+			jsonTxnReceipt, err := json.Marshal(resultStreamTxnReceipt)
 			chk(err)
-			kafkaProducer("producer-tron-receipt-hot-rpc", "", string(jsonReceipt), kafkaProducerConfig)
+			kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxnReceipt), kafkaProducerConfig)
+			chk(err)
 			for logIndex, log := range txInfo.Log {
 				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
 					continue
 				}
-
 				tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
 				if tf != nil {
 					jsonTransfer, err := json.Marshal(tf)

@@ -268,8 +268,8 @@ func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr st
 		EnergyUsageTotal:  r.EnergyUsageTotal,
 		NetUsage:          r.NetUsage,
 		NetFee:            r.NetFee,
-		Fee:               tx_fee,
 		Result:            r.Result,
+		Fee:               tx_fee,
 	}
 }
 
@@ -433,6 +433,79 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 		Decimals:    *decimals,
 		TotalSupply: *totalSupply,
 		BlockNumber: uint64(*block.Number),
+	}
+}
+
+type StreamCsvTransactionReceipt struct {
+	Hash             string `csv:"hash" json:"hash"`
+	Nonce            string `csv:"nonce" json:"nonce"`
+	BlockHash        string `csv:"block_hash" json:"block_hash"`
+	BlockNumber      uint64 `csv:"block_number" json:"block_number"`
+	TransactionIndex int    `csv:"transaction_index" json:"transaction_index"`
+
+	FromAddress          string `csv:"from_address" json:"from_address"`
+	ToAddress            string `csv:"to_address" json:"to_address"`
+	Value                string `csv:"value" json:"value"`
+	Gas                  string `csv:"gas" json:"gas"`
+	GasPrice             string `csv:"gas_price" json:"gas_price"`
+	Input                string `csv:"input" json:"input"`
+	BlockTimestamp       uint64 `csv:"block_timestamp" json:"block_timestamp"`
+	MaxFeePerGas         string `csv:"max_fee_per_gas" json:"max_fee_per_gas"`
+	MaxPriorityFeePerGas string `csv:"max_priority_fee_per_gas" json:"max_priority_fee_per_gas"`
+	TransactionType      string `csv:"transaction_type" json:"transaction_type"`
+
+	Status string `csv:"status" json:"status"`
+
+	// appendix
+	TransactionTimestamp  int64 `csv:"transaction_timestamp" json:"transaction_timestamp"`
+	TransactionExpiration int64 `csv:"transaction_expiration" json:"transaction_expiration"`
+	FeeLimit              int64 `csv:"fee_limit" json:"fee_limit"`
+
+	ContractAddress   string `csv:"receipts_contract_address" json:"receipts_contract_address"`
+	EnergyUsage       int64  `csv:"receipts_energy_usage,omitempty" json:"receipts_energy_usage"`
+	EnergyFee         int64  `csv:"receipts_energy_fee,omitempty" json:"receipts_energy_fee"`
+	OriginEnergyUsage int64  `csv:"receipts_origin_energy_usage,omitempty" json:"receipts_origin_energy_usage"`
+	EnergyUsageTotal  int64  `csv:"receipts_energy_usage_total,omitempty" json:"receipts_energy_usage_total"`
+	NetUsage          int64  `csv:"receipts_net_usage,omitempty" json:"receipts_net_usage"`
+	NetFee            int64  `csv:"receipts_net_fee,omitempty" json:"receipts_net_fee"`
+	Result            string `csv:"receipts_result" json:"receipts_result"`
+	Fee               int64  `csv:"receipts_fee" json:"receipts_fee"`
+}
+
+func NewStreamCsvTransactionReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr string, tx_fee int64, r *tron.HTTPReceipt, jsontx *CsvTransaction) *StreamCsvTransactionReceipt {
+	return &StreamCsvTransactionReceipt{
+		Hash:                 jsontx.Hash,
+		Nonce:                jsontx.Nonce,
+		BlockHash:            jsontx.BlockHash,
+		BlockNumber:          jsontx.BlockNumber,
+		TransactionIndex:     jsontx.TransactionIndex,
+		FromAddress:          jsontx.FromAddress, //tron.EnsureTAddr(jsontx.From[2:]),
+		ToAddress:            jsontx.ToAddress,
+		Value:                jsontx.Value,
+		Gas:                  jsontx.Gas,
+		GasPrice:             jsontx.GasPrice, // https://support.ledger.com/hc/en-us/articles/6331588714141-How-do-Tron-TRX-fees-work-?support=true
+		Input:                jsontx.Input,
+		BlockTimestamp:       jsontx.BlockTimestamp / 1000, // unit: sec
+		MaxFeePerGas:         "",                           //tx.MaxFeePerGas.String(),
+		MaxPriorityFeePerGas: "",                           //tx.MaxPriorityFeePerGas.String(),
+		TransactionType:      jsontx.TransactionType,       //jsontx.Type[2:],
+
+		Status: jsontx.Status, // can be SUCCESS REVERT
+
+		// appendix
+		TransactionTimestamp:  jsontx.TransactionTimestamp,  // float64(httptx.RawData.Timestamp) * 1 / 1000,
+		TransactionExpiration: jsontx.TransactionExpiration, // float64(httptx.RawData.Expiration) * 1 / 1000,
+		FeeLimit:              jsontx.FeeLimit,
+
+		ContractAddress:   contractAddr,
+		EnergyUsage:       r.EnergyUsage,
+		EnergyFee:         r.EnergyFee,
+		OriginEnergyUsage: r.OriginEnergyUsage,
+		EnergyUsageTotal:  r.EnergyUsageTotal,
+		NetUsage:          r.NetUsage,
+		NetFee:            r.NetFee,
+		Result:            r.Result,
+		Fee:               tx_fee,
 	}
 }
 
