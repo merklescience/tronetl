@@ -20,6 +20,7 @@ import (
 const (
 	FirstAfterTimestamp = 1
 	LastBeforeTimestamp = -1
+	totalMsgcnt         = 3
 )
 
 type BlockGenMetadata struct {
@@ -141,14 +142,16 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 
 func constructKafkaProducer() *kafka.Producer {
 	writer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers":   "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
-		"sasl.mechanisms":     "PLAIN",
-		"security.protocol":   "SASL_SSL",
-		"sasl.username":       "xxxxx",
-		"sasl.password":       "xxxxx",
-		"client.id":           "tronetl",
-		"go.batch.producer":   true,
-		"go.delivery.reports": false,
+		"bootstrap.servers":       "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
+		"sasl.mechanisms":         "PLAIN",
+		"security.protocol":       "SASL_SSL",
+		"sasl.username":           "xxxxxxxx",
+		"sasl.password":           "xxxxxx",
+		"client.id":               "tronetl",
+		"go.batch.producer":       true,
+		"go.delivery.reports":     false,
+		"go.events.channel.size":  1000,
+		"go.produce.channel.size": 1000,
 	})
 
 	if err != nil {
@@ -156,31 +159,6 @@ func constructKafkaProducer() *kafka.Producer {
 		os.Exit(1)
 	}
 	return writer
-}
-
-func kafkaProducer(topic string, key string, value string, kafkaProducerConfig *kafka.Producer) {
-	delivery_chan := make(chan kafka.Event, 10000)
-	kafkaProducerConfig.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-		Value:          []byte(value)},
-		delivery_chan,
-	)
-
-	go func() {
-		for e := range kafkaProducerConfig.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Failed to deliver message: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Successfully produced record to topic %s partition [%d] @ offset %v\n",
-						*ev.TopicPartition.Topic, ev.TopicPartition.Partition, ev.TopicPartition.Offset)
-				}
-			}
-		}
-		kafkaProducerConfig.Flush(50000)
-		kafkaProducerConfig.Close()
-	}()
 }
 
 func readLastSyncedBlock(file string) int {
@@ -217,5 +195,59 @@ func writeToFile(file, content string) {
 	err := os.WriteFile(file, []byte(content), 0644)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+// go-routine to handle message delivery reports and
+// possibly other event types (errors, stats, etc)
+func kafkaProducer(topic string, key string, value string, p *kafka.Producer) {
+	go func() {
+		for e := range p.Events() {
+			switch ev := e.(type) {
+			case *kafka.Message:
+				// The message delivery report, indicating success or
+				// permanent failure after retries have been exhausted.
+				// Application level retries won't help since the client
+				// is already configured to do that.
+				m := ev
+				if m.TopicPartition.Error != nil {
+					fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
+				} else {
+					fmt.Printf("Delivered message to topic %s [%d] at offset %v\n",
+						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
+				}
+			case kafka.Error:
+				// Generic client instance-level errors, such as
+				// broker connection failures, authentication issues, etc.
+				//
+				// These errors should generally be considered informational
+				// as the underlying client will automatically try to
+				// recover from any errors encountered, the application
+				// does not need to take action on them.
+				fmt.Printf("Error: %v\n", ev)
+			default:
+				fmt.Printf("Ignored event: %s\n", ev)
+			}
+		}
+	}()
+
+	msgcnt := 0
+	for msgcnt < totalMsgcnt {
+		err := p.Produce(&kafka.Message{
+			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+			Value:          []byte(value),
+			Key:            []byte(key),
+		}, nil)
+
+		if err != nil {
+			if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+				// Producer queue is full, wait 1s for messages
+				// to be delivered then try again.
+				time.Sleep(time.Second)
+				continue
+			}
+			fmt.Printf("Failed to produce message: %v\n", err)
+		}
+		msgcnt++
 	}
 }

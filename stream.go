@@ -29,9 +29,9 @@ func ExportStream(options *ExportStreamOptions) {
 	latestBlock := cli.GetLatestBlock()
 	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
 	log.Printf("try parsing blocks from block number %d", startBlock+1)
-	kafkaProducerConfig := constructKafkaProducer()
 
 	for number := startBlock + 1; ; number++ {
+		kafkaProducerConfig := constructKafkaProducer()
 		num := new(big.Int).SetUint64(number)
 		for latestBlock < number {
 			fmt.Println("Waiting for new block. Current block number => ", latestBlock)
@@ -74,7 +74,7 @@ func ExportStream(options *ExportStreamOptions) {
 					chk(err)
 					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
 					jsonTrc10Data, err := json.Marshal(csvTf)
-					kafkaProducer("producer-tron-trc10-hot-rpc", "", string(jsonTrc10Data), kafkaProducerConfig)
+					kafkaProducer("producer-tron_dev-trc10-hot", csvTf.AssetName, string(jsonTrc10Data), kafkaProducerConfig)
 					chk(err)
 				}
 			}
@@ -85,7 +85,7 @@ func ExportStream(options *ExportStreamOptions) {
 			fmt.Println("Error:", err)
 			return
 		}
-		kafkaProducer("producer-tron-blocks-hot-rpc", "", string(jsonBlockData), kafkaProducerConfig)
+		kafkaProducer("producer-tron_dev-blocks-hot", "0x0000", string(jsonBlockData), kafkaProducerConfig)
 		chk(err)
 
 		//token_transfer
@@ -97,7 +97,7 @@ func ExportStream(options *ExportStreamOptions) {
 			resultStreamTxnReceipt := NewStreamCsvTransactionReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt, &txCSV)
 			jsonTxnReceipt, err := json.Marshal(resultStreamTxnReceipt)
 			chk(err)
-			kafkaProducer("producer-tron-transactions-hot-rpc", "", string(jsonTxnReceipt), kafkaProducerConfig)
+			kafkaProducer("producer-tron_dev-transactions-hot", "0x0000", string(jsonTxnReceipt), kafkaProducerConfig)
 			chk(err)
 			for logIndex, log := range txInfo.Log {
 				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
@@ -107,27 +107,31 @@ func ExportStream(options *ExportStreamOptions) {
 				if tf != nil {
 					jsonTransfer, err := json.Marshal(tf)
 					chk(err)
-					kafkaProducer("producer-tron-token_transfers-hot-rpc", "", string(jsonTransfer), kafkaProducerConfig)
+					kafkaProducer("producer-tron_dev-token_transfers-hot", tf.TokenAddress, string(jsonTransfer), kafkaProducerConfig)
 					chk(err)
 				}
 
-				tfLog := NewCsvLog(number, txHash, uint(logIndex), log)
-				jsonLog, err := json.Marshal(tfLog)
-				chk(err)
-				kafkaProducer("producer-tron-logs-hot-rpc", "", string(jsonLog), kafkaProducerConfig)
-				chk(err)
+				// tfLog := NewCsvLog(number, txHash, uint(logIndex), log)
+				// jsonLog, err := json.Marshal(tfLog)
+				// chk(err)
+				// kafkaProducer("producer-tron-logs-hot", "", string(jsonLog), kafkaProducerConfig)
+				// chk(err)
 			}
 			for internalIndex, internalTx := range txInfo.InternalTransactions {
 				for callInfoIndex, callInfo := range internalTx.CallValueInfo {
 					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
 					jsonInternalTx, err := json.Marshal(internalTx)
 					chk(err)
-					kafkaProducer("producer-tron-internal_transactions-hot-rpc", "", string(jsonInternalTx), kafkaProducerConfig)
+					kafkaProducer("producer-tron_dev-internal_transactions-hot", "0x0000", string(jsonInternalTx), kafkaProducerConfig)
 					chk(err)
 				}
 			}
 		}
 		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
 		log.Printf("parsed block %d", number)
+		for kafkaProducerConfig.Flush(10000) > 0 {
+			fmt.Print("Still waiting to flush outstanding messages\n")
+		}
+		kafkaProducerConfig.Close()
 	}
 }

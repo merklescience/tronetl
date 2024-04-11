@@ -215,6 +215,7 @@ type CsvInternalTx struct {
 	CallValue               int64  `csv:"call_value" json:"call_value"`
 	Note                    string `csv:"note" json:"note"`
 	Rejected                bool   `csv:"rejected" json:"rejected"`
+	TokenAddress            string `csv:"token_address" json:"token_address"`
 }
 
 // NewCsvInternalTx creates a new CsvInternalTx
@@ -232,8 +233,9 @@ func NewCsvInternalTx(blockNum uint64, txHash string, index uint, itx *tron.HTTP
 		CallTokenID:   tokenID,
 		CallValue:     value,
 
-		Note:     itx.Note,
-		Rejected: itx.Rejected,
+		Note:         itx.Note,
+		Rejected:     itx.Rejected,
+		TokenAddress: "0x0000",
 	}
 }
 
@@ -470,6 +472,7 @@ type StreamCsvTransactionReceipt struct {
 	NetFee            int64  `csv:"receipts_net_fee,omitempty" json:"receipts_net_fee"`
 	Result            string `csv:"receipts_result" json:"receipts_result"`
 	Fee               int64  `csv:"receipts_fee" json:"receipts_fee"`
+	TokenAddress      string `csv:"token_address" json:"token_address"`
 }
 
 func NewStreamCsvTransactionReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr string, tx_fee int64, r *tron.HTTPReceipt, jsontx *CsvTransaction) *StreamCsvTransactionReceipt {
@@ -506,6 +509,7 @@ func NewStreamCsvTransactionReceipt(blockNum uint64, txHash string, txIndex uint
 		NetFee:            r.NetFee,
 		Result:            r.Result,
 		Fee:               tx_fee,
+		TokenAddress:      "0x0000",
 	}
 }
 

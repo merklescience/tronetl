@@ -10,14 +10,14 @@ import (
 const TRANSFER_EVENT_TOPIC = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" // NO 0x Prefix for ANY topic!!!
 
 type Transfer struct {
-	BlockNumber uint64 `json:"blockNumber" csv:"block_number"`
+	BlockNumber uint64 `json:"block_number" csv:"block_number"`
 
 	TransactionHash string `json:"transaction_hash" csv:"transaction_hash"`
-	LogIndex        uint   `json:"logIndex" csv:"log_index"`
+	LogIndex        uint   `json:"log_index" csv:"log_index"`
 	// TxHashIdx       string      `csv:"id"`
-	TokenAddress string `json:"tokenAddress" csv:"token_address"`
-	FromAddress  string `json:"fromAddress" csv:"from_address"`
-	ToAddress    string `json:"toAddress" csv:"to_address"`
+	TokenAddress string `json:"token_address" csv:"token_address"`
+	FromAddress  string `json:"from_address" csv:"from_address"`
+	ToAddress    string `json:"to_address" csv:"to_address"`
 	Value        string `json:"value" csv:"value"`
 }
 
