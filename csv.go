@@ -155,14 +155,15 @@ type CsvTRC10Transfer struct {
 	TransactionIndex  int    `csv:"transaction_index" json:"transaction_index"`
 	ContractCallIndex int    `csv:"contract_call_index" json:"contract_call_index"`
 
-	AssetName   string `csv:"asset_name" json:"asset_name"` // do not omit => empty means trx
-	FromAddress string `csv:"from_address" json:"from_address"`
-	ToAddress   string `csv:"to_address" json:"to_address"`
-	Value       string `csv:"value" json:"value"`
+	AssetName      string `csv:"asset_name" json:"asset_name"` // do not omit => empty means trx
+	FromAddress    string `csv:"from_address" json:"from_address"`
+	ToAddress      string `csv:"to_address" json:"to_address"`
+	Value          string `csv:"value" json:"value"`
+	BlockTimestamp uint64 `csv:"block_timestamp" json:"block_timestamp"`
 }
 
 // NewCsvTRC10Transfer creates a new CsvTRC10Transfer
-func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex int, httpTx *tron.HTTPTransaction, tfParams *tron.TRC10TransferParams) *CsvTRC10Transfer {
+func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex int, httpTx *tron.HTTPTransaction, tfParams *tron.TRC10TransferParams, blockTimestamp uint64) *CsvTRC10Transfer {
 	asset, _ := hex.DecodeString(tfParams.AssetName)
 	return &CsvTRC10Transfer{
 		TransactionHash:   httpTx.TxID,
@@ -171,10 +172,11 @@ func NewCsvTRC10Transfer(blockHash string, blockNum uint64, txIndex, callIndex i
 		TransactionIndex:  txIndex,
 		ContractCallIndex: callIndex,
 
-		AssetName:   string(asset),
-		FromAddress: tron.EnsureTAddr(tfParams.OwnerAddress),
-		ToAddress:   tron.EnsureTAddr(tfParams.ToAddress),
-		Value:       tfParams.Amount.String(),
+		AssetName:      string(asset),
+		FromAddress:    tron.EnsureTAddr(tfParams.OwnerAddress),
+		ToAddress:      tron.EnsureTAddr(tfParams.ToAddress),
+		Value:          tfParams.Amount.String(),
+		BlockTimestamp: blockTimestamp,
 	}
 }
 
@@ -216,10 +218,11 @@ type CsvInternalTx struct {
 	Note                    string `csv:"note" json:"note"`
 	Rejected                bool   `csv:"rejected" json:"rejected"`
 	TokenAddress            string `csv:"token_address" json:"token_address"`
+	BlockTimestamp          uint64 `csv:"block_timestamp" json:"block_timestamp"`
 }
 
 // NewCsvInternalTx creates a new CsvInternalTx
-func NewCsvInternalTx(blockNum uint64, txHash string, index uint, itx *tron.HTTPInternalTransaction, callInfoIndex uint, tokenID string, value int64) *CsvInternalTx {
+func NewCsvInternalTx(blockNum uint64, txHash string, index uint, itx *tron.HTTPInternalTransaction, callInfoIndex uint, tokenID string, value int64, blockTimestamp uint64) *CsvInternalTx {
 
 	return &CsvInternalTx{
 		BlockNumber:             blockNum,
@@ -233,9 +236,10 @@ func NewCsvInternalTx(blockNum uint64, txHash string, index uint, itx *tron.HTTP
 		CallTokenID:   tokenID,
 		CallValue:     value,
 
-		Note:         itx.Note,
-		Rejected:     itx.Rejected,
-		TokenAddress: "0x0000",
+		Note:           itx.Note,
+		Rejected:       itx.Rejected,
+		TokenAddress:   "0x0000",
+		BlockTimestamp: blockTimestamp,
 	}
 }
 
@@ -488,10 +492,10 @@ func NewStreamCsvTransactionReceipt(blockNum uint64, txHash string, txIndex uint
 		Gas:                  jsontx.Gas,
 		GasPrice:             jsontx.GasPrice, // https://support.ledger.com/hc/en-us/articles/6331588714141-How-do-Tron-TRX-fees-work-?support=true
 		Input:                jsontx.Input,
-		BlockTimestamp:       jsontx.BlockTimestamp / 1000, // unit: sec
-		MaxFeePerGas:         "",                           //tx.MaxFeePerGas.String(),
-		MaxPriorityFeePerGas: "",                           //tx.MaxPriorityFeePerGas.String(),
-		TransactionType:      jsontx.TransactionType,       //jsontx.Type[2:],
+		BlockTimestamp:       jsontx.BlockTimestamp,  // unit: sec
+		MaxFeePerGas:         "",                     //tx.MaxFeePerGas.String(),
+		MaxPriorityFeePerGas: "",                     //tx.MaxPriorityFeePerGas.String(),
+		TransactionType:      jsontx.TransactionType, //jsontx.Type[2:],
 
 		Status: jsontx.Status, // can be SUCCESS REVERT
 

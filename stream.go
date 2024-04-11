@@ -59,6 +59,7 @@ func ExportStream(options *ExportStreamOptions) {
 		for txIndex, jsontx := range jsonblock.Transactions {
 			httptx := httpblock.Transactions[txIndex]
 			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
+			blockTimestamp := csvTx.BlockTimestamp
 			csvTxMap[csvTx.Hash] = *csvTx
 			// jsonTxData, err := json.Marshal(csvTx)
 
@@ -72,7 +73,7 @@ func ExportStream(options *ExportStreamOptions) {
 
 					err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
 					chk(err)
-					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
+					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTimestamp)
 					jsonTrc10Data, err := json.Marshal(csvTf)
 					kafkaProducer("producer-tron_dev-trc10-hot", csvTf.AssetName, string(jsonTrc10Data), kafkaProducerConfig)
 					chk(err)
@@ -81,6 +82,7 @@ func ExportStream(options *ExportStreamOptions) {
 		}
 
 		jsonBlockData, err := json.Marshal(csvBlock)
+		blkTimestamp := csvBlock.Timestamp
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -119,7 +121,7 @@ func ExportStream(options *ExportStreamOptions) {
 			}
 			for internalIndex, internalTx := range txInfo.InternalTransactions {
 				for callInfoIndex, callInfo := range internalTx.CallValueInfo {
-					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
+					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, blkTimestamp)
 					jsonInternalTx, err := json.Marshal(internalTx)
 					chk(err)
 					kafkaProducer("producer-tron_dev-internal_transactions-hot", "0x0000", string(jsonInternalTx), kafkaProducerConfig)

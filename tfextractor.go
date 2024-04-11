@@ -15,14 +15,15 @@ type Transfer struct {
 	TransactionHash string `json:"transaction_hash" csv:"transaction_hash"`
 	LogIndex        uint   `json:"log_index" csv:"log_index"`
 	// TxHashIdx       string      `csv:"id"`
-	TokenAddress string `json:"token_address" csv:"token_address"`
-	FromAddress  string `json:"from_address" csv:"from_address"`
-	ToAddress    string `json:"to_address" csv:"to_address"`
-	Value        string `json:"value" csv:"value"`
+	TokenAddress   string `json:"token_address" csv:"token_address"`
+	FromAddress    string `json:"from_address" csv:"from_address"`
+	ToAddress      string `json:"to_address" csv:"to_address"`
+	Value          string `json:"value" csv:"value"`
+	BlockTimestamp uint64 `json:"block_timestamp" csv:"block_timestamp"`
 }
 
 // ExtractTransferFromLog is a helper to extract EVM smart contract token transfer from the event logs
-func ExtractTransferFromLog(logTopics []string, logData string, logContractAddress string, logIndex uint, logTxHash string, logBlockNum uint64) *Transfer {
+func ExtractTransferFromLog(logTopics []string, logData string, logContractAddress string, logIndex uint, logTxHash string, logBlockNum uint64, blockTimestamp uint64) *Transfer {
 	// topics := log.Topics
 	if logTopics == nil || len(logTopics) < 1 {
 		return nil
@@ -51,6 +52,7 @@ func ExtractTransferFromLog(logTopics []string, logData string, logContractAddre
 		Value:           value.String(),
 		LogIndex:        logIndex,
 		TransactionHash: logTxHash,
+		BlockTimestamp:  blockTimestamp,
 		// TxHashIdx:       log.TxHash.String() + "_" + strconv.Itoa(int(log.Index)),
 	}
 }
