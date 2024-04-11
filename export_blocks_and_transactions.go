@@ -74,7 +74,7 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 							var tfParams tron.TRC10TransferParams
 							err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
 							chk(err)
-							csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
+							csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTime)
 							err = trc10CsvEncoder.Encode(csvTf)
 							chk(err)
 						}
@@ -147,7 +147,7 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 								var tfParams tron.TRC10TransferParams
 								err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
 								chk(err)
-								csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams)
+								csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTime)
 								trc10CsvEncCh <- csvTf
 							}
 						}

@@ -103,7 +103,7 @@ func ExportTransfers(options *ExportTransferOptions) {
 					}
 
 					if tfEncoder != nil {
-						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
+						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, 0000)
 						if tf != nil {
 							err := tfEncoder.Encode(tf)
 							chk(err)
@@ -120,7 +120,7 @@ func ExportTransfers(options *ExportTransferOptions) {
 				if internalTxEncoder != nil {
 					for internalIndex, internalTx := range txInfo.InternalTransactions {
 						for callInfoIndex, callInfo := range internalTx.CallValueInfo {
-							err := internalTxEncoder.Encode(NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue))
+							err := internalTxEncoder.Encode(NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, 0000))
 							chk(err)
 						}
 					}
@@ -193,7 +193,7 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 					}
 
 					if options.tfOutput != nil {
-						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
+						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, 0000)
 						if tf != nil {
 							tfEncCh <- tf
 						}
@@ -208,7 +208,7 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 				if options.internalTxOutput != nil {
 					for internalIndex, internalTx := range txInfo.InternalTransactions {
 						for callInfoIndex, callInfo := range internalTx.CallValueInfo {
-							internalTxEncCh <- NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue)
+							internalTxEncCh <- NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, 0000)
 						}
 					}
 				}
