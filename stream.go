@@ -41,16 +41,11 @@ func ExportStream(options *ExportStreamOptions) {
 		}
 		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
 		httpblock := cli.GetHTTPBlockByNumber(num)
-		if httpblock == nil {
+		if httpblock == nil || jsonblock == nil {
 			time.Sleep(10 * time.Second)
 			jsonblock = cli.GetJSONBlockByNumberWithTxs(num)
 			httpblock = cli.GetHTTPBlockByNumber(num)
 
-		}
-		if httpblock.BlockHeader == nil {
-			time.Sleep(10 * time.Second)
-			jsonblock = cli.GetJSONBlockByNumberWithTxs(num)
-			httpblock = cli.GetHTTPBlockByNumber(num)
 		}
 		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 		csvBlock := NewCsvBlock(jsonblock, httpblock)
@@ -105,7 +100,7 @@ func ExportStream(options *ExportStreamOptions) {
 				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
 					continue
 				}
-				tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number)
+				tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, blkTimestamp)
 				if tf != nil {
 					jsonTransfer, err := json.Marshal(tf)
 					chk(err)

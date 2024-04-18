@@ -20,7 +20,6 @@ import (
 const (
 	FirstAfterTimestamp = 1
 	LastBeforeTimestamp = -1
-	totalMsgcnt         = 3
 )
 
 type BlockGenMetadata struct {
@@ -231,23 +230,19 @@ func kafkaProducer(topic string, key string, value string, p *kafka.Producer) {
 		}
 	}()
 
-	msgcnt := 0
-	for msgcnt < totalMsgcnt {
-		err := p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          []byte(value),
-			Key:            []byte(key),
-		}, nil)
+	err := p.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Value:          []byte(value),
+		Key:            []byte(key),
+	}, nil)
 
-		if err != nil {
-			if err.(kafka.Error).Code() == kafka.ErrQueueFull {
-				// Producer queue is full, wait 1s for messages
-				// to be delivered then try again.
-				time.Sleep(time.Second)
-				continue
-			}
-			fmt.Printf("Failed to produce message: %v\n", err)
+	if err != nil {
+		if err.(kafka.Error).Code() == kafka.ErrQueueFull {
+			// Producer queue is full, wait 1s for messages
+			// to be delivered then try again.
+			time.Sleep(time.Second)
 		}
-		msgcnt++
+		fmt.Printf("Failed to produce message: %v\n", err)
 	}
+
 }
