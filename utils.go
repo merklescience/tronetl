@@ -141,11 +141,11 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 
 func constructKafkaProducer() *kafka.Producer {
 	writer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers":       "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
+		"bootstrap.servers":       os.Getenv("CONFLUENT_BROKER"),
 		"sasl.mechanisms":         "PLAIN",
 		"security.protocol":       "SASL_SSL",
-		"sasl.username":           "xxxxxxxx",
-		"sasl.password":           "xxxxxx",
+		"sasl.username":           os.Getenv("KAFKA_PRODUCER_KEY"),
+		"sasl.password":           os.Getenv("KAFKA_PRODUCER_PASSWORD"),
 		"client.id":               "tronetl",
 		"go.batch.producer":       true,
 		"go.delivery.reports":     false,
@@ -197,17 +197,11 @@ func writeToFile(file, content string) {
 	}
 }
 
-// go-routine to handle message delivery reports and
-// possibly other event types (errors, stats, etc)
 func kafkaProducer(topic string, key string, value string, p *kafka.Producer) {
 	go func() {
 		for e := range p.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
-				// The message delivery report, indicating success or
-				// permanent failure after retries have been exhausted.
-				// Application level retries won't help since the client
-				// is already configured to do that.
 				m := ev
 				if m.TopicPartition.Error != nil {
 					fmt.Printf("Delivery failed: %v\n", m.TopicPartition.Error)
@@ -216,13 +210,6 @@ func kafkaProducer(topic string, key string, value string, p *kafka.Producer) {
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 				}
 			case kafka.Error:
-				// Generic client instance-level errors, such as
-				// broker connection failures, authentication issues, etc.
-				//
-				// These errors should generally be considered informational
-				// as the underlying client will automatically try to
-				// recover from any errors encountered, the application
-				// does not need to take action on them.
 				fmt.Printf("Error: %v\n", ev)
 			default:
 				fmt.Printf("Ignored event: %s\n", ev)
@@ -238,8 +225,6 @@ func kafkaProducer(topic string, key string, value string, p *kafka.Producer) {
 
 	if err != nil {
 		if err.(kafka.Error).Code() == kafka.ErrQueueFull {
-			// Producer queue is full, wait 1s for messages
-			// to be delivered then try again.
 			time.Sleep(time.Second)
 		}
 		fmt.Printf("Failed to produce message: %v\n", err)
