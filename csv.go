@@ -267,7 +267,7 @@ func NewCsvReceipt(blockNum uint64, txHash string, txIndex uint, contractAddr st
 		TxIndex: txIndex,
 		// BlockHash:         blockHash,
 		BlockNumber:       blockNum,
-		ContractAddress:   contractAddr,
+		ContractAddress:   tron.EnsureTAddr(contractAddr),
 		EnergyUsage:       r.EnergyUsage,
 		EnergyFee:         r.EnergyFee,
 		OriginEnergyUsage: r.OriginEnergyUsage,
