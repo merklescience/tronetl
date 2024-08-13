@@ -43,10 +43,10 @@ func ExportStream(options *ExportStreamOptions) {
 		kafkaProducerConfig := constructKafkaProducer()
 		num := new(big.Int).SetUint64(number)
 		for latestBlock < number {
-			fmt.Printf("Waiting for new block. Current block number %d, streaming lag %d => ", latestBlock+uint64(options.Lag), uint64(options.Lag))
-			fmt.Println("Input starting block number => ", number)
+			// fmt.Printf("Waiting for new block. Current block number => %d, streaming lag => %d \n", latestBlock+uint64(options.Lag), uint64(options.Lag))
+			// fmt.Println("Input starting block number => ", number)
 			latestBlock = cli.GetLatestBlock() - uint64(options.Lag)
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
 		httpblock := cli.GetHTTPBlockByNumber(num)
