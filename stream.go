@@ -22,6 +22,7 @@ type ExportStreamOptions struct {
 	InternalTransactionsTopicName string   `json:"internal_transactions_topic_name"`
 	Trc10TopicName                string   `json:"trc10_topic_name"`
 	TokenTransfersTopicName       string   `json:"token_transfers_topic_name"`
+	Lag                           uint8    `json:"lag"`
 }
 
 func ExportStream(options *ExportStreamOptions) {
@@ -31,17 +32,20 @@ func ExportStream(options *ExportStreamOptions) {
 	for i, addr := range options.Contracts {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:]
 	}
-	latestBlock := cli.GetLatestBlock()
+	latestBlock := cli.GetLatestBlock() - uint64(options.Lag)
+
 	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
 	log.Printf("try parsing blocks from block number %d", startBlock+1)
+	log.Printf("Lag from tip of chain : %d", options.Lag)
+	log.Printf("Latest Block : %d", latestBlock+uint64(options.Lag))
 
 	for number := startBlock + 1; ; number++ {
 		kafkaProducerConfig := constructKafkaProducer()
 		num := new(big.Int).SetUint64(number)
 		for latestBlock < number {
-			fmt.Println("Waiting for new block. Current block number => ", latestBlock)
+			fmt.Printf("Waiting for new block. Current block number %d, streaming lag %d => ", latestBlock+uint64(options.Lag), uint64(options.Lag))
 			fmt.Println("Input starting block number => ", number)
-			latestBlock = cli.GetLatestBlock()
+			latestBlock = cli.GetLatestBlock() - uint64(options.Lag)
 			time.Sleep(5 * time.Second)
 		}
 		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)

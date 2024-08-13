@@ -58,12 +58,13 @@ func main() {
 	cmdAddrDetails.AddFlagSet(nodeConfigs)
 
 	cmdStream := pflag.NewFlagSet("stream", pflag.ExitOnError)
-	lastSyncedBlockFile := defaults.String("last_synced_block_file", "last_synced_block.txt", "last_sync_block.txt file")
-	blocksTopicName := defaults.String("blocks_topic", "producer-tron_dev-blocks-hot", "Kafka Topic Name")
-	transactionsTopicName := defaults.String("transactions_topic", "producer-tron_dev-transactions-hot", "Kafka Topic Name")
-	internalTransactionsTopicName := defaults.String("internal_transactions_topic", "producer-tron_dev-internal_transactions-hot", "Kafka Topic Name")
-	trc10TopicName := defaults.String("trc10_topic", "producer-tron_dev-trc10-hot", "Kafka Topic Name")
-	tokenTransferTopicName := defaults.String("token_transfers_topic", "producer-tron_dev-token_transfers-hot", "Kafka Topic Name")
+	streamingLag := cmdStream.Uint8("lag", 0, "lag with the latest block")
+	lastSyncedBlockFile := cmdStream.String("last_synced_block_file", "last_synced_block.txt", "last_sync_block.txt file")
+	blocksTopicName := cmdStream.String("blocks_topic", "producer-tron_dev-blocks-hot", "Kafka Topic Name")
+	transactionsTopicName := cmdStream.String("transactions_topic", "producer-tron_dev-transactions-hot", "Kafka Topic Name")
+	internalTransactionsTopicName := cmdStream.String("internal_transactions_topic", "producer-tron_dev-internal_transactions-hot", "Kafka Topic Name")
+	trc10TopicName := cmdStream.String("trc10_topic", "producer-tron_dev-trc10-hot", "Kafka Topic Name")
+	tokenTransferTopicName := cmdStream.String("token_transfers_topic", "producer-tron_dev-token_transfers-hot", "Kafka Topic Name")
 	cmdStream.AddFlagSet(cmdBlocksAndTxs)
 	cmdStream.AddFlagSet(cmdTokenTf)
 	cmdStream.AddFlagSet(defaults)
@@ -295,6 +296,7 @@ func main() {
 		Use:   "stream",
 		Short: "stream blocks, with the blocks' trx and trc10 transactions",
 		Run: func(cmd *cobra.Command, args []string) {
+
 			optionsStream := &ExportStreamOptions{
 				ProviderURI:                   *providerURI,
 				LastSyncedBlockFile:           *lastSyncedBlockFile,
@@ -303,6 +305,7 @@ func main() {
 				InternalTransactionsTopicName: *internalTransactionsTopicName,
 				Trc10TopicName:                *trc10TopicName,
 				TokenTransfersTopicName:       *tokenTransferTopicName,
+				Lag:                           *streamingLag,
 			}
 			ExportStream(optionsStream)
 		},
