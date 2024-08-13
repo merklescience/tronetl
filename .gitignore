@@ -1,3 +1,5 @@
 *.csv
 *example*
 tronetl
+last_synced_block.txt
+.idea/
