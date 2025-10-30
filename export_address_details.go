@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"io"
+	"log"
 	"strings"
 
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
@@ -63,14 +64,22 @@ func ExportAddressDetails(options *ExportAddressDetailsOptions) {
 
 	cli := tron.NewTronClient(options.ProviderURI)
 	for _, addr := range allAddrs {
-		acc := cli.GetAccount(addr)
+		acc, err := cli.GetAccount(addr)
+		if err != nil {
+			log.Printf("Error getting account %s: %v, skipping...", addr, err)
+			continue
+		}
 
 		if options.accountsOutput != nil {
 			accountsCsvEncoder.Encode(NewCsvAccount(acc))
 		}
 
 		if options.contractsOutput != nil && strings.ToLower(acc.AccountType) == "contract" {
-			contract := cli.GetContract(addr)
+			contract, err := cli.GetContract(addr)
+			if err != nil {
+				log.Printf("Error getting contract %s: %v, skipping...", addr, err)
+				continue
+			}
 			csvContract := NewCsvContract(contract)
 			contractsEncoder.Encode(csvContract)
 

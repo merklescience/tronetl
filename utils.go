@@ -14,7 +14,6 @@ import (
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jszwec/csvutil"
-	// "github.com/segmentio/kafka-go"
 )
 
 const (
@@ -37,7 +36,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var prevTimeDiff int64
 	var prevBlockNumber int64
 	var stepSize int64
-	limitDateTime, err := time.Parse(time.DateTime, dateTime)
+	limitDateTime, err := time.Parse("2006-01-02 15:04:05", dateTime)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +54,11 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	log.Println("Starting Block Number ", approxBlockNumber, " : ", blockType, " and limitDatetime : ", dateTime)
 	for {
 
-		approxBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumber))
+		approxBlock, err := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumber))
+		if err != nil {
+			log.Printf("Error getting block %d: %v, skipping...", approxBlockNumber, err)
+			continue
+		}
 		timeDiff := int64(*approxBlock.Timestamp) - limitDateTime.UTC().Unix() // approx block's time - our required date time
 
 		// Edge case handled
@@ -113,9 +116,15 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 
 func AvgBlockGenTime(c *tron.TronClient) (*BlockGenMetadata, error) {
 	const blockCheckNumber = 100000
-	latestBlock := c.GetJSONBlockByNumberWithTxIDs(nil)
+	latestBlock, err := c.GetJSONBlockByNumberWithTxIDs(nil)
+	if err != nil {
+		return nil, fmt.Errorf("error getting latest block: %w", err)
+	}
 	oldBlockNumber := *latestBlock.Number - blockCheckNumber
-	oldBlock := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(int64(oldBlockNumber)))
+	oldBlock, err := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(int64(oldBlockNumber)))
+	if err != nil {
+		return nil, fmt.Errorf("error getting old block: %w", err)
+	}
 	blockGenMeta := &BlockGenMetadata{blockNumber: uint64(*latestBlock.Number), avgBlockGenTime: (uint64(*latestBlock.Timestamp) - uint64(*oldBlock.Timestamp)) / blockCheckNumber, latestBlockTime: int64(*latestBlock.Timestamp)}
 	return blockGenMeta, nil
 }
@@ -131,7 +140,9 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 				return
 			}
 			err := enc.Encode(obj)
-			chk(err)
+			if err != nil {
+				log.Printf("Error encoding CSV: %v", err)
+			}
 		}
 	}
 

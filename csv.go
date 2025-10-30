@@ -386,9 +386,15 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 	contractAddr := contract.ContractAddress
 	callerAddr := contract.OriginAddress
 
-	symbolResult := cli.CallContract(contractAddr, callerAddr, 0, 1000,
+	println(contractAddr)
+
+	symbolResult, err := cli.CallContract(contractAddr, callerAddr, 0, 1000,
 		"symbol()",
 	)
+	if err != nil {
+		log.Printf("Error calling symbol() on contract %s: %v", contractAddr, err)
+		return nil
+	}
 	symbol := ParseSymbol(symbolResult.ConstantResult)
 	if symbol == nil {
 		log.Println("failed to parse symbol for contract", tron.EnsureHexAddr(contractAddr))
@@ -397,9 +403,13 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 		return nil
 	}
 
-	nameResult := cli.CallContract(contractAddr, callerAddr, 0, 1000,
+	nameResult, err := cli.CallContract(contractAddr, callerAddr, 0, 1000,
 		"name()",
 	)
+	if err != nil {
+		log.Printf("Error calling name() on contract %s: %v", contractAddr, err)
+		return nil
+	}
 	name := ParseName(nameResult.ConstantResult)
 	if name == nil {
 		log.Println("failed to parse name for contract", tron.EnsureHexAddr(contractAddr))
@@ -408,9 +418,13 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 		return nil
 	}
 
-	decimalsResult := cli.CallContract(contractAddr, callerAddr, 0, 1000,
+	decimalsResult, err := cli.CallContract(contractAddr, callerAddr, 0, 1000,
 		"decimals()",
 	)
+	if err != nil {
+		log.Printf("Error calling decimals() on contract %s: %v", contractAddr, err)
+		return nil
+	}
 	decimals := ParseDecimals(decimalsResult.ConstantResult)
 	if decimals == nil {
 		log.Println("failed to parse decimals for contract", tron.EnsureHexAddr(contractAddr))
@@ -419,9 +433,13 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 		return nil
 	}
 
-	totalSupplyResult := cli.CallContract(contractAddr, callerAddr, 0, 1000,
+	totalSupplyResult, err := cli.CallContract(contractAddr, callerAddr, 0, 1000,
 		"totalSupply()",
 	)
+	if err != nil {
+		log.Printf("Error calling totalSupply() on contract %s: %v", contractAddr, err)
+		return nil
+	}
 	totalSupply := ParseTotalSupply(totalSupplyResult.ConstantResult)
 	if totalSupply == nil {
 		log.Println("failed to parse totalSupply for contract", tron.EnsureHexAddr(contractAddr))
@@ -430,7 +448,11 @@ func NewCsvTokens(cli *tron.TronClient, contract *tron.HTTPContract) *CsvTokens 
 		return nil
 	}
 
-	block := cli.GetJSONBlockByNumberWithTxIDs(nil)
+	block, err := cli.GetJSONBlockByNumberWithTxIDs(nil)
+	if err != nil {
+		log.Printf("Error getting block: %v", err)
+		return nil
+	}
 
 	return &CsvTokens{
 		Address:     contractAddr,
@@ -523,22 +545,37 @@ func ParseSymbol(contractResults []string) *string {
 	}
 
 	result := contractResults[0]
+	// Check if result has sufficient length before slicing
+	if len(result) < 64 {
+		return nil
+	}
+
 	bigLlen, ok := new(big.Int).SetString(result[0:64], 16)
 	if !ok {
-		// TODO: warn log here
 		return nil
 	}
+
+	// Make sure we don't go out of bounds on the next slice operation
+	if 64+bigLlen.Int64()*2 > int64(len(result)) {
+		return nil
+	}
+
 	l, ok := new(big.Int).SetString(result[64:64+bigLlen.Int64()*2], 16)
 	if !ok {
-		// TODO: warn log here
 		return nil
 	}
+
+	// Final bounds check
+	if 64+bigLlen.Int64()*2+l.Int64()*2 > int64(len(result)) {
+		return nil
+	}
+
 	hexStr := result[64+bigLlen.Int64()*2 : 64+bigLlen.Int64()*2+l.Int64()*2]
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
-		// TODO: err log here
 		return nil
 	}
+
 	rtn := string(decoded)
 	return &rtn
 }
@@ -549,20 +586,34 @@ func ParseName(contractResults []string) *string {
 	}
 
 	result := contractResults[0]
+	// Check if result has sufficient length before slicing
+	if len(result) < 64 {
+		return nil
+	}
+
 	bigLlen, ok := new(big.Int).SetString(result[0:64], 16)
 	if !ok {
-		// TODO: warn log here
 		return nil
 	}
+
+	// Make sure we don't go out of bounds on the next slice operation
+	if 64+bigLlen.Int64()*2 > int64(len(result)) {
+		return nil
+	}
+
 	l, ok := new(big.Int).SetString(result[64:64+bigLlen.Int64()*2], 16)
 	if !ok {
-		// TODO: warn log here
 		return nil
 	}
+
+	// Final bounds check
+	if 64+bigLlen.Int64()*2+l.Int64()*2 > int64(len(result)) {
+		return nil
+	}
+
 	hexStr := result[64+bigLlen.Int64()*2 : 64+bigLlen.Int64()*2+l.Int64()*2]
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
-		// TODO: err log here
 		return nil
 	}
 
@@ -572,12 +623,11 @@ func ParseName(contractResults []string) *string {
 
 func ParseDecimals(contractResults []string) *uint64 {
 	if len(contractResults) == 0 {
-		panic("failed to parse symbol")
+		return nil // Return nil instead of panicking
 	}
 
 	result, ok := new(big.Int).SetString(contractResults[0], 16)
 	if !ok {
-		// TODO: err log here
 		return nil
 	}
 

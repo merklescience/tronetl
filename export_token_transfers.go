@@ -89,7 +89,11 @@ func ExportTransfers(options *ExportTransferOptions) {
 
 	if options.StartBlock != 0 && options.EndBlock != 0 {
 		for number := options.StartBlock; number <= options.EndBlock; number++ {
-			txInfos := cli.GetTxInfosByNumber(number)
+			txInfos, err := cli.GetTxInfosByNumber(number)
+			if err != nil {
+				log.Printf("Error getting transaction infos for block %d: %v, skipping...", number, err)
+				continue
+			}
 			for txIndex, txInfo := range txInfos {
 				txHash := txInfo.ID
 
@@ -97,22 +101,26 @@ func ExportTransfers(options *ExportTransferOptions) {
 					receiptEncoder.Encode(NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt))
 				}
 
-				for logIndex, log := range txInfo.Log {
-					if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
+				for logIndex, logItem := range txInfo.Log {
+					if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, logItem.Address) {
 						continue
 					}
 
 					if tfEncoder != nil {
-						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, 0000)
+						tf := ExtractTransferFromLog(logItem.Topics, logItem.Data, logItem.Address, uint(logIndex), txHash, number, 0000)
 						if tf != nil {
-							err := tfEncoder.Encode(tf)
-							chk(err)
+							err = tfEncoder.Encode(tf)
+							if err != nil {
+								log.Printf("Error encoding transfer: %v", err)
+							}
 						}
 					}
 
 					if logEncoder != nil {
-						err := logEncoder.Encode(NewCsvLog(number, txHash, uint(logIndex), log))
-						chk(err)
+						err = logEncoder.Encode(NewCsvLog(number, txHash, uint(logIndex), logItem))
+						if err != nil {
+							log.Printf("Error encoding log: %v", err)
+						}
 					}
 
 				}
@@ -120,8 +128,10 @@ func ExportTransfers(options *ExportTransferOptions) {
 				if internalTxEncoder != nil {
 					for internalIndex, internalTx := range txInfo.InternalTransactions {
 						for callInfoIndex, callInfo := range internalTx.CallValueInfo {
-							err := internalTxEncoder.Encode(NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, 0000))
-							chk(err)
+							err = internalTxEncoder.Encode(NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, 0000))
+							if err != nil {
+								log.Printf("Error encoding internal transaction: %v", err)
+							}
 						}
 					}
 				}
@@ -179,7 +189,11 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 
 	exportWork := func(wg *sync.WaitGroup, workerID uint) {
 		for number := options.StartBlock + uint64(workerID); number <= options.EndBlock; number += uint64(workers) {
-			txInfos := cli.GetTxInfosByNumber(number)
+			txInfos, err := cli.GetTxInfosByNumber(number)
+			if err != nil {
+				log.Printf("Error getting transaction infos for block %d: %v, skipping...", number, err)
+				continue
+			}
 			for txIndex, txInfo := range txInfos {
 				txHash := txInfo.ID
 
@@ -187,20 +201,20 @@ func ExportTransfersWithWorkers(options *ExportTransferOptions, workers uint) {
 					receiptEncCh <- NewCsvReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt)
 				}
 
-				for logIndex, log := range txInfo.Log {
-					if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
+				for logIndex, logItem := range txInfo.Log {
+					if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, logItem.Address) {
 						continue
 					}
 
 					if options.tfOutput != nil {
-						tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, 0000)
+						tf := ExtractTransferFromLog(logItem.Topics, logItem.Data, logItem.Address, uint(logIndex), txHash, number, 0000)
 						if tf != nil {
 							tfEncCh <- tf
 						}
 					}
 
 					if options.logOutput != nil {
-						logEncCh <- NewCsvLog(number, txHash, uint(logIndex), log)
+						logEncCh <- NewCsvLog(number, txHash, uint(logIndex), logItem)
 					}
 
 				}

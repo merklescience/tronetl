@@ -34,7 +34,9 @@ func EnsureTAddr(hexStr string) string {
 
 	if len(hexStr) == 21*2 {
 		addrBytes, err := hex.DecodeString(hexStr)
-		chk(err)
+		if err != nil {
+			panic(err)
+		}
 		sum0 := sha256.Sum256(addrBytes)
 		sum1 := sha256.Sum256(sum0[:])
 		chksum := sum1[0:4]

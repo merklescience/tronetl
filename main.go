@@ -225,7 +225,11 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			cli := tron.NewTronClient("http://localhost")
 
-			latestBlock := cli.GetJSONBlockByNumberWithTxIDs(nil)
+			latestBlock, err := cli.GetJSONBlockByNumberWithTxIDs(nil)
+			if err != nil {
+				log.Printf("Error getting latest block: %v", err)
+				return
+			}
 			log.Printf("latest block: %d", *latestBlock.Number)
 
 			tryStr2Uint := func(str string) uint64 {
@@ -241,11 +245,23 @@ func main() {
 				var zipBuffer *bytes.Buffer = new(bytes.Buffer)
 				var zipWriter *zip.Writer = zip.NewWriter(zipBuffer)
 				blksOut, err := zipWriter.Create("blocks.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating blocks.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 				txsOut, err := zipWriter.Create("transactions.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating transactions.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 				trc10Out, err := zipWriter.Create("trc10.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating trc10.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 
 				options := &ExportBlocksAndTransactionsOptions{
 					blksOutput:  blksOut,
@@ -266,11 +282,23 @@ func main() {
 				var zipBuffer *bytes.Buffer = new(bytes.Buffer)
 				var zipWriter *zip.Writer = zip.NewWriter(zipBuffer)
 				tfOut, err := zipWriter.Create("token_transfers.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating token_transfers.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 				logOut, err := zipWriter.Create("logs.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating logs.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 				internalTxOut, err := zipWriter.Create("internal_transactions.csv")
-				chk(err)
+				if err != nil {
+					log.Printf("Error creating internal_transactions.csv: %v", err)
+					ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create zip file"})
+					return
+				}
 
 				options := &ExportTransferOptions{
 					tfOutput:         tfOut,

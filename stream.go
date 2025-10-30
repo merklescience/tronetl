@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math/big"
 	"time"
@@ -10,6 +9,13 @@ import (
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"golang.org/x/exp/slices"
 )
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 type ExportStreamOptions struct {
 	ProviderURI                   string   `json:"provider_uri,omitempty"`
@@ -32,7 +38,14 @@ func ExportStream(options *ExportStreamOptions) {
 	for i, addr := range options.Contracts {
 		filterLogContracts[i] = tron.EnsureHexAddr(addr)[2:]
 	}
-	latestBlock := cli.GetLatestBlock() - uint64(options.Lag)
+
+	// Get initial latest block
+	latestBlockNum, err := cli.GetLatestBlock()
+	if err != nil {
+		log.Printf("Error getting initial latest block: %v", err)
+		return
+	}
+	latestBlock := latestBlockNum - uint64(options.Lag)
 
 	startBlock := uint64(readLastSyncedBlock(options.LastSyncedBlockFile))
 	log.Printf("try parsing blocks from block number %d", startBlock+1)
@@ -45,22 +58,54 @@ func ExportStream(options *ExportStreamOptions) {
 		for latestBlock < number {
 			// fmt.Printf("Waiting for new block. Current block number => %d, streaming lag => %d \n", latestBlock+uint64(options.Lag), uint64(options.Lag))
 			// fmt.Println("Input starting block number => ", number)
-			latestBlock = cli.GetLatestBlock() - uint64(options.Lag)
+			latestBlockNum, err := cli.GetLatestBlock()
+			if err != nil {
+				log.Printf("Error getting latest block: %v, retrying in 2 seconds...", err)
+				time.Sleep(2 * time.Second)
+				continue
+			}
+			latestBlock = latestBlockNum - uint64(options.Lag)
 			time.Sleep(2 * time.Second)
 		}
-		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
-		httpblock := cli.GetHTTPBlockByNumber(num)
-		if httpblock == nil || jsonblock == nil {
-			time.Sleep(10 * time.Second)
-			jsonblock = cli.GetJSONBlockByNumberWithTxs(num)
-			httpblock = cli.GetHTTPBlockByNumber(num)
 
+		// Get blocks with retry logic (do not skip the block)
+		var jsonblock *tron.JSONBlockWithTxs
+		var httpblock *tron.HTTPBlock
+		for attempt := 0; ; attempt++ {
+			if attempt > 0 {
+				log.Printf("Retry attempt %d for block %d", attempt, number)
+				time.Sleep(time.Duration(min(attempt, 5)) * 2 * time.Second)
+			}
+
+			jb, jerr := cli.GetJSONBlockByNumberWithTxs(num)
+			if jerr != nil {
+				log.Printf("Error getting JSON block %d: %v", number, jerr)
+			}
+
+			hb, herr := cli.GetHTTPBlockByNumber(num)
+			if herr != nil {
+				log.Printf("Error getting HTTP block %d: %v", number, herr)
+			}
+
+			if jb != nil && hb != nil {
+				jsonblock = jb
+				httpblock = hb
+				break
+			}
 		}
 		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 		csvBlock := NewCsvBlock(jsonblock, httpblock)
 		blockHash := csvBlock.Hash
 		csvTxMap := make(map[string]CsvTransaction)
-		for txIndex, jsontx := range jsonblock.Transactions {
+		// guard against mismatch in transaction lists
+		jsonTxCount := len(jsonblock.Transactions)
+		httpTxCount := len(httpblock.Transactions)
+		limitTx := jsonTxCount
+		if httpTxCount < limitTx {
+			limitTx = httpTxCount
+		}
+		for txIndex := 0; txIndex < limitTx; txIndex++ {
+			jsontx := jsonblock.Transactions[txIndex]
 			httptx := httpblock.Transactions[txIndex]
 			csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
 			blockTimestamp := csvTx.BlockTimestamp
@@ -76,11 +121,17 @@ func ExportStream(options *ExportStreamOptions) {
 					var tfParams tron.TRC10TransferParams
 
 					err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
-					chk(err)
+					if err != nil {
+						log.Printf("Error unmarshaling transfer params: %v, skipping...", err)
+						continue
+					}
 					csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTimestamp)
 					jsonTrc10Data, err := json.Marshal(csvTf)
+					if err != nil {
+						log.Printf("Error marshaling TRC10 transfer: %v, skipping...", err)
+						continue
+					}
 					kafkaProducer(options.Trc10TopicName, csvTf.AssetName, string(jsonTrc10Data), kafkaProducerConfig)
-					chk(err)
 				}
 			}
 		}
@@ -88,33 +139,49 @@ func ExportStream(options *ExportStreamOptions) {
 		jsonBlockData, err := json.Marshal(csvBlock)
 		blkTimestamp := csvBlock.Timestamp
 		if err != nil {
-			fmt.Println("Error:", err)
-			return
+			log.Printf("Error marshaling block: %v, skipping block %d", err, number)
+			continue
 		}
 		kafkaProducer(options.BlocksTopicName, "0x0000", string(jsonBlockData), kafkaProducerConfig)
-		chk(err)
 
-		//token_transfer
-		txInfos := cli.GetTxInfosByNumber(number)
+		// token_transfer (retry until success)
+		var txInfos []tron.HTTPTxInfo
+		for attempt := 0; ; attempt++ {
+			if attempt > 0 {
+				log.Printf("Retry txinfos attempt %d for block %d", attempt, number)
+				time.Sleep(time.Duration(min(attempt, 5)) * 2 * time.Second)
+			}
+			infos, ierr := cli.GetTxInfosByNumber(number)
+			if ierr != nil {
+				log.Printf("Error getting transaction infos for block %d: %v", number, ierr)
+				continue
+			}
+			txInfos = infos
+			break
+		}
 		for txIndex, txInfo := range txInfos {
 			txHash := txInfo.ID
 			txCSV := csvTxMap[txHash]
 			// jsonTxn, err := json.Marshal(txCSV)
 			resultStreamTxnReceipt := NewStreamCsvTransactionReceipt(number, txHash, uint(txIndex), txInfo.ContractAddress, txInfo.Fee, txInfo.Receipt, &txCSV)
 			jsonTxnReceipt, err := json.Marshal(resultStreamTxnReceipt)
-			chk(err)
+			if err != nil {
+				log.Printf("Error marshaling transaction receipt: %v, skipping...", err)
+				continue
+			}
 			kafkaProducer(options.TransactionsTopicName, "0x0000", string(jsonTxnReceipt), kafkaProducerConfig)
-			chk(err)
-			for logIndex, log := range txInfo.Log {
-				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, log.Address) {
+			for logIndex, logItem := range txInfo.Log {
+				if len(filterLogContracts) != 0 && !slices.Contains(filterLogContracts, logItem.Address) {
 					continue
 				}
-				tf := ExtractTransferFromLog(log.Topics, log.Data, log.Address, uint(logIndex), txHash, number, blkTimestamp)
+				tf := ExtractTransferFromLog(logItem.Topics, logItem.Data, logItem.Address, uint(logIndex), txHash, number, blkTimestamp)
 				if tf != nil {
 					jsonTransfer, err := json.Marshal(tf)
-					chk(err)
+					if err != nil {
+						log.Printf("Error marshaling transfer: %v, skipping...", err)
+						continue
+					}
 					kafkaProducer(options.TokenTransfersTopicName, tf.TokenAddress, string(jsonTransfer), kafkaProducerConfig)
-					chk(err)
 				}
 
 				// tfLog := NewCsvLog(number, txHash, uint(logIndex), log)
@@ -127,17 +194,20 @@ func ExportStream(options *ExportStreamOptions) {
 				for callInfoIndex, callInfo := range internalTx.CallValueInfo {
 					internalTx := NewCsvInternalTx(number, txHash, uint(internalIndex), internalTx, uint(callInfoIndex), callInfo.TokenID, callInfo.CallValue, blkTimestamp)
 					jsonInternalTx, err := json.Marshal(internalTx)
-					chk(err)
+					if err != nil {
+						log.Printf("Error marshaling internal transaction: %v, skipping...", err)
+						continue
+					}
 					kafkaProducer(options.InternalTransactionsTopicName, "0x0000", string(jsonInternalTx), kafkaProducerConfig)
-					chk(err)
 				}
 			}
 		}
-		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
-		log.Printf("parsed block %d", number)
+		// flush to kafka first, then mark block as synced
 		for kafkaProducerConfig.Flush(10000) > 0 {
 			log.Printf("Still waiting to flush outstanding messages\n")
 		}
+		writeLastSyncedBlock(options.LastSyncedBlockFile, number)
+		log.Printf("parsed block %d", number)
 		kafkaProducerConfig.Close()
 	}
 }

@@ -53,8 +53,20 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 	for number := options.StartBlock; number <= options.EndBlock; number++ {
 		num := new(big.Int).SetUint64(number)
 
-		jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
-		httpblock := cli.GetHTTPBlockByNumber(num)
+		var jsonblock *tron.JSONBlockWithTxs
+		var httpblock *tron.HTTPBlock
+		var err error
+
+		jsonblock, err = cli.GetJSONBlockByNumberWithTxs(num)
+		if err != nil {
+			log.Printf("Error getting JSON block %d: %v, skipping...", number, err)
+			continue
+		}
+		httpblock, err = cli.GetHTTPBlockByNumber(num)
+		if err != nil {
+			log.Printf("Error getting HTTP block %d: %v, skipping...", number, err)
+			continue
+		}
 		blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 		csvBlock := NewCsvBlock(jsonblock, httpblock)
 		blockHash := csvBlock.Hash
@@ -63,8 +75,10 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 				httptx := httpblock.Transactions[txIndex]
 				if options.txsOutput != nil {
 					csvTx := NewCsvTransaction(blockTime, txIndex, &jsontx, &httptx)
-					err := txsCsvEncoder.Encode(csvTx)
-					chk(err)
+					err = txsCsvEncoder.Encode(csvTx)
+					if err != nil {
+						log.Printf("Error encoding transaction: %v", err)
+					}
 				}
 
 				if options.trc10Output != nil {
@@ -72,11 +86,16 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 						if contractCall.ContractType == "TransferAssetContract" ||
 							contractCall.ContractType == "TransferContract" {
 							var tfParams tron.TRC10TransferParams
-							err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
-							chk(err)
+							err = json.Unmarshal(contractCall.Parameter.Value, &tfParams)
+							if err != nil {
+								log.Printf("Error unmarshaling transfer params: %v", err)
+								continue
+							}
 							csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTime)
 							err = trc10CsvEncoder.Encode(csvTf)
-							chk(err)
+							if err != nil {
+								log.Printf("Error encoding TRC10 transfer: %v", err)
+							}
 						}
 					}
 
@@ -85,8 +104,10 @@ func ExportBlocksAndTransactions(options *ExportBlocksAndTransactionsOptions) {
 			}
 		}
 
-		err := blksCsvEncoder.Encode(csvBlock)
-		chk(err)
+		err = blksCsvEncoder.Encode(csvBlock)
+		if err != nil {
+			log.Printf("Error encoding block: %v", err)
+		}
 
 		log.Printf("parsed block %d", number)
 	}
@@ -127,8 +148,20 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 
 			num := new(big.Int).SetUint64(number)
 
-			jsonblock := cli.GetJSONBlockByNumberWithTxs(num)
-			httpblock := cli.GetHTTPBlockByNumber(num)
+			var jsonblock *tron.JSONBlockWithTxs
+			var httpblock *tron.HTTPBlock
+			var err error
+
+			jsonblock, err = cli.GetJSONBlockByNumberWithTxs(num)
+			if err != nil {
+				log.Printf("Error getting JSON block %d: %v, skipping...", number, err)
+				continue
+			}
+			httpblock, err = cli.GetHTTPBlockByNumber(num)
+			if err != nil {
+				log.Printf("Error getting HTTP block %d: %v, skipping...", number, err)
+				continue
+			}
 			blockTime := uint64(httpblock.BlockHeader.RawData.Timestamp)
 			csvBlock := NewCsvBlock(jsonblock, httpblock)
 			blockHash := csvBlock.Hash
@@ -145,8 +178,11 @@ func ExportBlocksAndTransactionsWithWorkers(options *ExportBlocksAndTransactions
 							if contractCall.ContractType == "TransferAssetContract" ||
 								contractCall.ContractType == "TransferContract" {
 								var tfParams tron.TRC10TransferParams
-								err := json.Unmarshal(contractCall.Parameter.Value, &tfParams)
-								chk(err)
+								err = json.Unmarshal(contractCall.Parameter.Value, &tfParams)
+								if err != nil {
+									log.Printf("Error unmarshaling transfer params: %v", err)
+									continue
+								}
 								csvTf := NewCsvTRC10Transfer(blockHash, number, txIndex, callIndex, &httpblock.Transactions[txIndex], &tfParams, blockTime)
 								trc10CsvEncCh <- csvTf
 							}
