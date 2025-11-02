@@ -14,6 +14,7 @@ import (
 	"git.ngx.fi/c0mm4nd/tronetl/tron"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/jszwec/csvutil"
+	// "github.com/segmentio/kafka-go"
 )
 
 const (
@@ -36,7 +37,7 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 	var prevTimeDiff int64
 	var prevBlockNumber int64
 	var stepSize int64
-	limitDateTime, err := time.Parse("2006-01-02 15:04:05", dateTime)
+	limitDateTime, err := time.Parse(time.DateTime, dateTime)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +57,8 @@ func BlockNumberFromDateTime(c *tron.TronClient, dateTime string, blockType int)
 
 		approxBlock, err := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(approxBlockNumber))
 		if err != nil {
-			log.Printf("Error getting block %d: %v, skipping...", approxBlockNumber, err)
+			log.Printf("Error getting block %d: %v, retrying...", approxBlockNumber, err)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 		timeDiff := int64(*approxBlock.Timestamp) - limitDateTime.UTC().Unix() // approx block's time - our required date time
@@ -123,7 +125,7 @@ func AvgBlockGenTime(c *tron.TronClient) (*BlockGenMetadata, error) {
 	oldBlockNumber := *latestBlock.Number - blockCheckNumber
 	oldBlock, err := c.GetJSONBlockByNumberWithTxIDs(big.NewInt(int64(oldBlockNumber)))
 	if err != nil {
-		return nil, fmt.Errorf("error getting old block: %w", err)
+		return nil, fmt.Errorf("error getting old block %d: %w", oldBlockNumber, err)
 	}
 	blockGenMeta := &BlockGenMetadata{blockNumber: uint64(*latestBlock.Number), avgBlockGenTime: (uint64(*latestBlock.Timestamp) - uint64(*oldBlock.Timestamp)) / blockCheckNumber, latestBlockTime: int64(*latestBlock.Timestamp)}
 	return blockGenMeta, nil
@@ -140,9 +142,7 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 				return
 			}
 			err := enc.Encode(obj)
-			if err != nil {
-				log.Printf("Error encoding CSV: %v", err)
-			}
+			chk(err)
 		}
 	}
 
@@ -152,11 +152,11 @@ func createCSVEncodeCh(wg *sync.WaitGroup, enc *csvutil.Encoder, maxWorker uint)
 
 func constructKafkaProducer() *kafka.Producer {
 	writer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers":       os.Getenv("CONFLUENT_BROKER"),
+		"bootstrap.servers":       "pkc-3w22w.us-central1.gcp.confluent.cloud:9092",
 		"sasl.mechanisms":         "PLAIN",
 		"security.protocol":       "SASL_SSL",
-		"sasl.username":           os.Getenv("KAFKA_PRODUCER_KEY"),
-		"sasl.password":           os.Getenv("KAFKA_PRODUCER_PASSWORD"),
+		"sasl.username":           "H6OD4NBW4LO52XGI",
+		"sasl.password":           "qfMZIN6Qg8ueYQazh4ecOWhOU5GLKgIiGi2z+CIrlyNBJ56zFTef2diBet1NoIdq",
 		"client.id":               "tronetl",
 		"go.batch.producer":       true,
 		"go.delivery.reports":     false,
